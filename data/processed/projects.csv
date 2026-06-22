@@ -1,0 +1,51 @@
+project_id,project_name,required_roles,required_skills,budget_band,duration_months
+1,Re-Contextualize Web-Enabled Partnerships,"['Backend Developer', 'Senior Software Engineer']","['Tableau', 'Java', 'React', 'PyTorch', 'Git', 'Excel']",Medium,6
+2,Syndicate Back-End Functionalities,"['Project Manager', 'Analytics Manager', 'ML Engineer']","['Tableau', 'AWS', 'Python']",Medium,1
+3,Engineer 24/365 Eyeballs,"['Data Scientist', 'Project Manager', 'Sales Executive']","['AWS', 'Excel', 'React', 'Linux']",Low,12
+4,Visualize Back-End Partnerships,"['ML Engineer', 'Data Scientist', 'UX Designer', 'Project Manager']","['Git', 'PyTorch', 'AWS']",Medium,8
+5,Envisioneer Cross-Platform Initiatives,"['ML Engineer', 'Backend Developer', 'DevOps Engineer', 'HR Manager', 'Project Manager']","['React', 'Java', 'Linux', 'C++']",Medium,5
+6,Aggregate End-To-End E-Commerce,"['Sales Executive', 'Senior Software Engineer', 'HR Manager']","['Tableau', 'C++', 'Linux']",Medium,4
+7,Leverage Compelling Convergence,"['Senior Software Engineer', 'UX Designer', 'Software Engineer', 'DevOps Engineer', 'Analytics Manager']","['Git', 'C++', 'Excel']",Low,3
+8,Re-Intermediate Impactful Interfaces,"['Senior Software Engineer', 'Sales Executive', 'UX Designer', 'HR Manager', 'Analytics Manager']","['AWS', 'Kubernetes', 'TensorFlow', 'Python', 'Docker', 'Spark', 'Linux']",Low,10
+9,Facilitate Out-Of-The-Box Vortals,"['DevOps Engineer', 'Sales Executive', 'Data Scientist', 'Recruiter']","['Kubernetes', 'React', 'TensorFlow']",Medium,4
+10,Expedite Rich Technologies,"['Business Analyst', 'Software Engineer', 'Senior Software Engineer', 'DevOps Engineer']","['TensorFlow', 'PyTorch', 'Spark']",Low,8
+11,Target Cross-Media Markets,"['Business Analyst', 'Frontend Developer', 'HR Manager', 'Recruiter']","['TensorFlow', 'Git', 'React', 'Tableau', 'C++', 'PyTorch']",Low,10
+12,Morph Virtual Relationships,"['Data Scientist', 'DevOps Engineer']","['React', 'Python', 'Kubernetes']",High,4
+13,Synergize Vertical E-Tailers,"['ML Engineer', 'QA Tester']","['Tableau', 'C++', 'Angular', 'TensorFlow', 'PyTorch', 'Python']",High,9
+14,Redefine Frictionless E-Business,"['QA Tester', 'Frontend Developer']","['Git', 'SQL', 'C++', 'TensorFlow', 'Docker']",High,5
+15,E-Enable Compelling Initiatives,"['Software Engineer', 'Frontend Developer', 'DevOps Engineer', 'Senior Software Engineer']","['PyTorch', 'Python', 'Angular', 'Spark']",High,9
+16,Re-Intermediate Visionary Channels,"['Analytics Manager', 'Senior Software Engineer', 'QA Tester', 'Data Scientist', 'ML Engineer']","['Linux', 'Docker', 'Kubernetes', 'Spark', 'AWS', 'Angular']",High,11
+17,Empower Open-Source E-Services,"['Backend Developer', 'Recruiter', 'ML Engineer', 'QA Tester', 'Analytics Manager']","['Linux', 'React', 'Angular']",Low,10
+18,Visualize Intuitive Action-Items,"['Backend Developer', 'Frontend Developer', 'Project Manager', 'Sales Executive']","['Linux', 'Angular', 'Kubernetes', 'PyTorch', 'Docker', 'Git', 'Spark']",Medium,8
+19,Streamline Global Relationships,"['QA Tester', 'Backend Developer', 'Recruiter', 'UX Designer']","['PyTorch', 'Java', 'Spark', 'SQL', 'Azure']",Medium,5
+20,Incentivize Enterprise Metrics,"['Analytics Manager', 'Backend Developer', 'HR Manager']","['PyTorch', 'SQL', 'Java', 'Git', 'Docker', 'Python', 'React']",High,12
+21,Empower Real-Time Systems,"['Business Analyst', 'ML Engineer', 'Analytics Manager']","['React', 'Azure', 'Git', 'PyTorch', 'Tableau', 'Java']",High,8
+22,Incentivize Seamless Interfaces,"['Analytics Manager', 'Data Scientist', 'DevOps Engineer', 'Frontend Developer', 'QA Tester']","['Python', 'TensorFlow', 'Docker', 'Spark']",Medium,6
+23,Productize Rich Applications,"['Recruiter', 'Business Analyst', 'Senior Software Engineer', 'Software Engineer']","['PyTorch', 'Python', 'Java', 'Angular', 'Tableau']",High,1
+24,Re-Intermediate Best-Of-Breed Technologies,"['Analytics Manager', 'Recruiter', 'DevOps Engineer', 'Software Engineer', 'HR Manager']","['TensorFlow', 'Linux', 'React']",High,1
+25,Empower World-Class Deliverables,"['Business Analyst', 'Data Scientist', 'Project Manager', 'DevOps Engineer']","['Git', 'Linux', 'Python', 'Azure', 'SQL', 'C++']",High,12
+26,Synergize Compelling Web Services,"['Business Analyst', 'Project Manager']","['Git', 'Docker', 'Linux', 'PyTorch', 'AWS', 'Python']",Low,8
+27,Synergize Synergistic Schemas,"['HR Manager', 'Frontend Developer']","['Python', 'Linux', 'Kubernetes', 'C++', 'PyTorch', 'AWS', 'Azure']",Medium,10
+28,Deliver Cutting-Edge E-Services,"['UX Designer', 'DevOps Engineer', 'Project Manager', 'Business Analyst', 'QA Tester']","['C++', 'Spark', 'Linux', 'Java', 'Angular']",High,7
+29,Orchestrate Sticky Users,"['Sales Executive', 'Business Analyst']","['Kubernetes', 'Tableau', 'Java', 'TensorFlow']",Medium,1
+30,Benchmark Best-Of-Breed Web-Readiness,"['UX Designer', 'HR Manager', 'Project Manager', 'Business Analyst', 'DevOps Engineer']","['C++', 'React', 'Kubernetes', 'Tableau']",Medium,11
+31,Enable Granular Functionalities,"['Software Engineer', 'UX Designer', 'Data Scientist']","['Angular', 'AWS', 'Tableau', 'Linux']",Medium,6
+32,Cultivate Interactive Web Services,"['Backend Developer', 'Data Scientist', 'Software Engineer']","['Python', 'Angular', 'SQL']",Low,2
+33,Reinvent Global Architectures,"['ML Engineer', 'Software Engineer']","['Git', 'Tableau', 'Excel']",Medium,7
+34,Reinvent B2B E-Services,"['UX Designer', 'Analytics Manager']","['Python', 'Azure', 'Linux']",Low,8
+35,Matrix Web-Enabled Markets,"['QA Tester', 'Backend Developer', 'Data Scientist', 'UX Designer']","['Docker', 'Spark', 'Azure', 'AWS']",High,4
+36,Benchmark Front-End Applications,"['Project Manager', 'QA Tester']","['TensorFlow', 'Docker', 'Excel', 'React']",High,9
+37,Deliver End-To-End Web-Readiness,"['Project Manager', 'Data Scientist', 'UX Designer', 'Backend Developer', 'Sales Executive']","['TensorFlow', 'C++', 'Java']",Medium,4
+38,Empower Cross-Media Users,"['ML Engineer', 'Frontend Developer']","['Spark', 'Angular', 'Java', 'Docker', 'C++', 'SQL', 'React']",Medium,4
+39,Architect Holistic Platforms,"['Data Scientist', 'Analytics Manager', 'Backend Developer', 'UX Designer', 'ML Engineer']","['Tableau', 'Spark', 'TensorFlow', 'C++']",Low,4
+40,Unleash Integrated Partnerships,"['DevOps Engineer', 'Data Scientist', 'QA Tester']","['SQL', 'C++', 'Java', 'Kubernetes', 'Docker', 'TensorFlow', 'Python']",Low,10
+41,Productize Rich Relationships,"['Analytics Manager', 'Senior Software Engineer']","['Python', 'Excel', 'Kubernetes', 'React', 'Angular', 'SQL']",High,11
+42,Optimize Transparent Networks,"['Frontend Developer', 'Business Analyst']","['Kubernetes', 'Linux', 'Python']",Low,10
+43,Evolve Plug-And-Play Paradigms,"['Recruiter', 'QA Tester', 'Sales Executive', 'Data Scientist']","['Azure', 'Tableau', 'AWS', 'Kubernetes', 'Docker']",High,6
+44,Visualize 24/365 Paradigms,"['Backend Developer', 'Sales Executive', 'HR Manager', 'Frontend Developer']","['Excel', 'Angular', 'Java', 'Linux', 'Kubernetes', 'React']",Low,3
+45,Engineer Compelling Web-Readiness,"['DevOps Engineer', 'Recruiter', 'ML Engineer', 'Analytics Manager']","['Kubernetes', 'React', 'SQL', 'Angular', 'Tableau', 'Git', 'Spark']",Low,8
+46,Deliver E-Business Niches,"['Backend Developer', 'DevOps Engineer']","['Python', 'Angular', 'Azure', 'Spark', 'PyTorch', 'TensorFlow', 'Linux']",Medium,3
+47,Synergize Bricks-And-Clicks Deliverables,"['Backend Developer', 'UX Designer']","['AWS', 'Python', 'Azure', 'C++', 'Kubernetes', 'Git']",High,5
+48,Transform Clicks-And-Mortar Schemas,"['UX Designer', 'DevOps Engineer', 'QA Tester']","['Angular', 'AWS', 'Azure', 'Python']",Medium,6
+49,Integrate End-To-End Partnerships,"['Sales Executive', 'Senior Software Engineer', 'DevOps Engineer', 'Data Scientist']","['React', 'Angular', 'Python', 'Docker', 'TensorFlow']",Low,1
+50,Facilitate World-Class E-Commerce,"['DevOps Engineer', 'ML Engineer', 'Business Analyst', 'Analytics Manager']","['SQL', 'Python', 'Git', 'Spark', 'Excel', 'Kubernetes']",Medium,9
