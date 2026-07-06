@@ -6,9 +6,9 @@ seaborn
 jupyter
 sentence-transformers
 faiss-cpu
-chromadb
-ollama 
-streamlit 
-shap 
+ortools
+requests
+streamlit
+shap
 python-dotenv
-venv\Scripts\python.exe -m streamlit run src/dashboard.py
+pytest
