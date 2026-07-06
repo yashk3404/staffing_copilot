@@ -1,6 +1,25 @@
+# Virtual environment
 venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter checkpoints
 .ipynb_checkpoints/
-.vscode/
+
+# Environment variables
 .env
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large model cache (downloaded automatically)
+.cache/
