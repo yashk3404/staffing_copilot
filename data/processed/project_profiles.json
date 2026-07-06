@@ -1,0 +1,152 @@
+[
+  {
+    "project_id": "P001",
+    "project_name": "Cloud Migration \u2014 BPCL",
+    "profile": "Looking for DevOps and Backend Dev and Data Engineer. Required skills: AWS, Docker, Kubernetes, Python, Terraform. Minimum 4 years experience. Deadline in 72 days. High priority high budget project."
+  },
+  {
+    "project_id": "P002",
+    "project_name": "FinTech Mobile App v3 \u2014 PhonePe",
+    "profile": "Looking for Backend Dev and Android Dev and Data Engineer. Required skills: Python, Android, REST APIs, SQL, AWS. Minimum 2 years experience. Deadline in 68 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P003",
+    "project_name": "iOS Banking App \u2014 Axis Bank Tech",
+    "profile": "Looking for Android Dev and Backend Dev and Data Engineer. Required skills: Swift, iOS, REST APIs, PostgreSQL, AWS. Minimum 4 years experience. Deadline in 109 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P004",
+    "project_name": "Data Analytics Dashboard \u2014 HCL",
+    "profile": "Looking for Data Scientist and Frontend Dev and Data Engineer. Required skills: Python, SQL, React, Power BI, Tableau. Minimum 2 years experience. Deadline in 35 days. Medium priority medium budget project."
+  },
+  {
+    "project_id": "P005",
+    "project_name": "Internal HR Tool v2 \u2014 Yash Technologies",
+    "profile": "Looking for Full Stack Dev and Data Scientist. Required skills: React, Python, SQL, REST APIs. Minimum 1 years experience. Deadline in 37 days. Medium priority low budget project."
+  },
+  {
+    "project_id": "P006",
+    "project_name": "Cloud Migration v2 \u2014 ONGC Tech",
+    "profile": "Looking for DevOps and Backend Dev and Data Engineer. Required skills: AWS, Docker, Kubernetes, Python, Terraform. Minimum 3 years experience. Deadline in 107 days. High priority high budget project."
+  },
+  {
+    "project_id": "P007",
+    "project_name": "Internal HR Tool v2 \u2014 Yash Technologies",
+    "profile": "Looking for Full Stack Dev and Data Scientist. Required skills: React, Python, SQL, REST APIs. Minimum 3 years experience. Deadline in 36 days. Medium priority low budget project."
+  },
+  {
+    "project_id": "P008",
+    "project_name": "iOS Banking App v3 \u2014 Axis Bank Tech",
+    "profile": "Looking for Android Dev and Backend Dev and Data Engineer. Required skills: Swift, iOS, REST APIs, PostgreSQL, AWS. Minimum 2 years experience. Deadline in 115 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P009",
+    "project_name": "E-Commerce Platform v2 \u2014 Snapdeal",
+    "profile": "Looking for Full Stack Dev and Backend Dev and DevOps. Required skills: React, Node.js, PostgreSQL, Docker, AWS. Minimum 4 years experience. Deadline in 51 days. High priority medium budget project."
+  },
+  {
+    "project_id": "P010",
+    "project_name": "ML Recommendation Engine \u2014 Myntra",
+    "profile": "Looking for ML Engineer and Data Engineer and Backend Dev. Required skills: Python, TensorFlow, pandas, SQL, FastAPI. Minimum 3 years experience. Deadline in 79 days. High priority high budget project."
+  },
+  {
+    "project_id": "P011",
+    "project_name": "Internal HR Tool v1 \u2014 Internal",
+    "profile": "Looking for Full Stack Dev and Data Scientist. Required skills: React, Python, SQL, REST APIs. Minimum 1 years experience. Deadline in 34 days. Medium priority low budget project."
+  },
+  {
+    "project_id": "P012",
+    "project_name": "RAG Chatbot \u2014 Zoho",
+    "profile": "Looking for ML Engineer and Backend Dev and Data Engineer. Required skills: Python, LLMs, RAG, FAISS, FastAPI. Minimum 3 years experience. Deadline in 62 days. High priority medium budget project."
+  },
+  {
+    "project_id": "P013",
+    "project_name": "RAG Chatbot \u2014 Zoho",
+    "profile": "Looking for ML Engineer and Backend Dev and Data Engineer. Required skills: Python, LLMs, RAG, FAISS, FastAPI. Minimum 2 years experience. Deadline in 53 days. High priority medium budget project."
+  },
+  {
+    "project_id": "P014",
+    "project_name": "Cloud Migration \u2014 BPCL",
+    "profile": "Looking for DevOps and Backend Dev and Data Engineer. Required skills: AWS, Docker, Kubernetes, Python, Terraform. Minimum 3 years experience. Deadline in 143 days. High priority high budget project."
+  },
+  {
+    "project_id": "P015",
+    "project_name": "RAG Chatbot \u2014 Zoho",
+    "profile": "Looking for ML Engineer and Backend Dev and Data Engineer. Required skills: Python, LLMs, RAG, FAISS, FastAPI. Minimum 3 years experience. Deadline in 60 days. High priority medium budget project."
+  },
+  {
+    "project_id": "P016",
+    "project_name": "Data Analytics Dashboard \u2014 HCL",
+    "profile": "Looking for Data Scientist and Frontend Dev and Data Engineer. Required skills: Python, SQL, React, Power BI, Tableau. Minimum 1 years experience. Deadline in 25 days. Medium priority medium budget project."
+  },
+  {
+    "project_id": "P017",
+    "project_name": "FinTech Mobile App \u2014 PhonePe",
+    "profile": "Looking for Backend Dev and Android Dev and Data Engineer. Required skills: Python, Android, REST APIs, SQL, AWS. Minimum 2 years experience. Deadline in 65 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P018",
+    "project_name": "iOS Banking App v1 \u2014 Axis Bank Tech",
+    "profile": "Looking for Android Dev and Backend Dev and Data Engineer. Required skills: Swift, iOS, REST APIs, PostgreSQL, AWS. Minimum 3 years experience. Deadline in 67 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P019",
+    "project_name": "FinTech Mobile App \u2014 Paytm",
+    "profile": "Looking for Backend Dev and Android Dev and Data Engineer. Required skills: Python, Android, REST APIs, SQL, AWS. Minimum 4 years experience. Deadline in 59 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P020",
+    "project_name": "ML Recommendation Engine v2 \u2014 Flipkart",
+    "profile": "Looking for ML Engineer and Data Engineer and Backend Dev. Required skills: Python, TensorFlow, pandas, SQL, FastAPI. Minimum 5 years experience. Deadline in 113 days. High priority high budget project."
+  },
+  {
+    "project_id": "P021",
+    "project_name": "FinTech Mobile App v2 \u2014 Paytm",
+    "profile": "Looking for Backend Dev and Android Dev and Data Engineer. Required skills: Python, Android, REST APIs, SQL, AWS. Minimum 3 years experience. Deadline in 30 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P022",
+    "project_name": "RAG Chatbot v1 \u2014 Zoho",
+    "profile": "Looking for ML Engineer and Backend Dev and Data Engineer. Required skills: Python, LLMs, RAG, FAISS, FastAPI. Minimum 4 years experience. Deadline in 72 days. High priority medium budget project."
+  },
+  {
+    "project_id": "P023",
+    "project_name": "ML Recommendation Engine \u2014 Myntra",
+    "profile": "Looking for ML Engineer and Data Engineer and Backend Dev. Required skills: Python, TensorFlow, pandas, SQL, FastAPI. Minimum 5 years experience. Deadline in 114 days. High priority high budget project."
+  },
+  {
+    "project_id": "P024",
+    "project_name": "FinTech Mobile App v1 \u2014 Groww",
+    "profile": "Looking for Backend Dev and Android Dev and Data Engineer. Required skills: Python, Android, REST APIs, SQL, AWS. Minimum 4 years experience. Deadline in 54 days. Critical priority high budget project."
+  },
+  {
+    "project_id": "P025",
+    "project_name": "RAG Chatbot v2 \u2014 Freshworks",
+    "profile": "Looking for ML Engineer and Backend Dev and Data Engineer. Required skills: Python, LLMs, RAG, FAISS, FastAPI. Minimum 2 years experience. Deadline in 52 days. High priority medium budget project."
+  },
+  {
+    "project_id": "P026",
+    "project_name": "Cloud Migration v1 \u2014 Reliance Jio",
+    "profile": "Looking for DevOps and Backend Dev and Data Engineer. Required skills: AWS, Docker, Kubernetes, Python, Terraform. Minimum 5 years experience. Deadline in 102 days. High priority high budget project."
+  },
+  {
+    "project_id": "P027",
+    "project_name": "Data Analytics Dashboard \u2014 Infosys",
+    "profile": "Looking for Data Scientist and Frontend Dev and Data Engineer. Required skills: Python, SQL, React, Power BI, Tableau. Minimum 2 years experience. Deadline in 31 days. Medium priority medium budget project."
+  },
+  {
+    "project_id": "P028",
+    "project_name": "Internal HR Tool v1 \u2014 Yash Technologies",
+    "profile": "Looking for Full Stack Dev and Data Scientist. Required skills: React, Python, SQL, REST APIs. Minimum 1 years experience. Deadline in 42 days. Medium priority low budget project."
+  },
+  {
+    "project_id": "P029",
+    "project_name": "Internal HR Tool \u2014 Internal",
+    "profile": "Looking for Full Stack Dev and Data Scientist. Required skills: React, Python, SQL, REST APIs. Minimum 1 years experience. Deadline in 45 days. Medium priority low budget project."
+  },
+  {
+    "project_id": "P030",
+    "project_name": "Cloud Migration \u2014 BPCL",
+    "profile": "Looking for DevOps and Backend Dev and Data Engineer. Required skills: AWS, Docker, Kubernetes, Python, Terraform. Minimum 4 years experience. Deadline in 125 days. High priority high budget project."
+  }
+]

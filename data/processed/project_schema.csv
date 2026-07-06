@@ -1,0 +1,10 @@
+column_name,data_type,description,example
+project_id,string,Unique ID for project,P001
+project_name,string,Name of the project,FinTech Mobile App
+client,string,Client or internal team name,Acme Corp
+required_roles,string,Semicolon-separated roles needed,Backend Dev;Android Dev
+required_skills,string,Semicolon-separated skills needed,Python;Android;REST APIs
+min_experience,integer,Minimum years of experience required,3
+deadline_days,integer,Days from today until deadline,45
+budget_band,string,Budget tier low/medium/high,medium
+priority,string,Project priority low/medium/high/critical,high

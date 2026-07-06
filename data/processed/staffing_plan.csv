@@ -1,0 +1,15 @@
+project_id,role,employee_id,final_score
+P001,Backend Dev,E061,0.8389
+P001,Data Engineer,E031,0.7473
+P001,DevOps,E041,0.8451
+P002,Android Dev,E037,0.8307
+P002,Backend Dev,E066,0.8676
+P002,Data Engineer,E058,0.8118
+P003,Android Dev,E068,0.7433
+P003,Backend Dev,E075,0.8688
+P003,Data Engineer,E016,0.7438
+P004,Data Engineer,E064,0.8027
+P004,Data Scientist,E050,0.825
+P004,Frontend Dev,E029,0.8276
+P005,Data Scientist,E044,0.7854
+P005,Full Stack Dev,E009,0.8071

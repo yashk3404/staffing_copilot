@@ -1,0 +1,81 @@
+,employee_id,name,role,experience_years,skills,proficiency,availability_pct,cost_band,department,location
+0,E001,Aryan Maharaj,Frontend Dev,1,JavaScript;React;TypeScript;CSS;GraphQL;Git;Agile/Scrum,Intermediate;Expert;Intermediate;Intermediate;Beginner;Beginner;Beginner,60,B,Analytics,Bangalore
+1,E002,Udant Dewan,Full Stack Dev,10,JavaScript;React;Node.js;PostgreSQL;GraphQL;Docker;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,60,B,Engineering,Hyderabad
+2,E003,Gagan Sami,Backend Dev,6,Python;REST APIs;PostgreSQL;Docker;GraphQL;Git,Expert;Expert;Expert;Expert;Intermediate;Intermediate,60,B,Product,Bangalore
+3,E004,Ayushman Chander,DevOps,4,Docker;Kubernetes;Linux;CI/CD;Kafka;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate,80,C,Product,Bangalore
+4,E005,Viraj Tiwari,ML Engineer,5,Python;scikit-learn;pandas;NumPy;LLMs;Computer Vision;Git,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate,80,A,Analytics,Chennai
+5,E006,Rushil Saini,Data Engineer,12,Python;SQL;AWS;pandas;PostgreSQL;Kafka;Airflow;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert;Intermediate;Intermediate,60,B,Data & AI,Chennai
+6,E007,Saumya Mall,Backend Dev,7,Python;REST APIs;PostgreSQL;Docker;Node.js;Microservices;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Expert,80,B,Platform,Remote
+7,E008,Nathaniel Sami,Data Scientist,6,Python;scikit-learn;pandas;SQL;Power BI,Expert;Expert;Expert;Expert;Intermediate,80,C,Analytics,Remote
+8,E009,Arunima Dugal,Frontend Dev,8,JavaScript;React;TypeScript;CSS;REST APIs;Node.js;Git,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,100,A,Data & AI,Mumbai
+9,E010,Gayathri Chaudry,ML Engineer,8,Python;scikit-learn;pandas;NumPy;Computer Vision;LLMs;Docker;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert;Intermediate,80,C,Analytics,Bangalore
+10,E011,Lajita Chatterjee,Frontend Dev,1,JavaScript;React;TypeScript;CSS;Node.js;Git;REST APIs,Intermediate;Intermediate;Expert;Expert;Beginner;Beginner;Intermediate,80,A,Platform,Delhi
+11,E012,Hemangini Lalla,ML Engineer,3,Python;scikit-learn;pandas;NumPy;RAG;FAISS;Git,Intermediate;Intermediate;Intermediate;Expert;Intermediate;Beginner;Beginner,80,A,Data & AI,Pune
+12,E013,Tripti Yadav,ML Engineer,8,Python;scikit-learn;pandas;NumPy;Computer Vision;PyTorch;Git,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,100,A,Platform,Bangalore
+13,E014,Kritika Brar,Android Dev,1,Android;Kotlin;Java;REST APIs;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Beginner;Beginner,100,A,Data & AI,Remote
+14,E015,Janaki Handa,Frontend Dev,1,JavaScript;React;TypeScript;CSS;Node.js;Git;Agile/Scrum,Intermediate;Intermediate;Intermediate;Intermediate;Beginner;Beginner;Beginner,100,B,Engineering,Pune
+15,E016,Chakradev Kari,Data Engineer,11,Python;SQL;AWS;pandas;PostgreSQL;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Expert,80,A,Product,Chennai
+16,E017,Fariq Kaul,Data Engineer,7,Python;SQL;AWS;pandas;Spark;Git,Expert;Expert;Expert;Expert;Intermediate;Expert,40,C,Data & AI,Mumbai
+17,E018,Lajita Mall,Data Engineer,9,Python;SQL;AWS;pandas;Airflow;NumPy;Docker;Git,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate;Expert,60,C,Analytics,Bangalore
+18,E019,Janya Gaba,Full Stack Dev,5,JavaScript;React;Node.js;PostgreSQL;GraphQL;AWS;Git,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,80,B,Product,Mumbai
+19,E020,Isha Kadakia,Backend Dev,8,Python;REST APIs;PostgreSQL;Docker;FastAPI;GraphQL;Git,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate,80,B,Mobile,Delhi
+20,E021,Ekbal Garg,Project Manager,4,Project Management;Agile/Scrum;Excel;Tableau;Git,Expert;Expert;Expert;Intermediate;Intermediate,60,C,Engineering,Bangalore
+21,E022,Nihal Shere,Full Stack Dev,7,JavaScript;React;Node.js;PostgreSQL;MongoDB;REST APIs;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert;Expert,60,C,Data & AI,Bangalore
+22,E023,Anamika Kanda,Backend Dev,4,Python;REST APIs;PostgreSQL;Docker;Django;Node.js;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate,60,B,Analytics,Hyderabad
+23,E024,Daksh Karnik,Data Engineer,7,Python;SQL;AWS;pandas;Spark;PostgreSQL;NumPy;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Expert;Expert;Intermediate,80,B,Analytics,Mumbai
+24,E025,Diya Rattan,Frontend Dev,6,JavaScript;React;TypeScript;CSS;GraphQL;Node.js;Git,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate,100,B,Analytics,Pune
+25,E026,Dominic Kakar,Frontend Dev,8,JavaScript;React;TypeScript;CSS;GraphQL;REST APIs;Git,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,80,B,Data & AI,Bangalore
+26,E027,Simon Tata,Backend Dev,4,Python;REST APIs;PostgreSQL;Docker;Django;System Design;Node.js;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate;Expert,50,C,Data & AI,Delhi
+27,E028,Tara Dhar,Data Scientist,10,Python;scikit-learn;pandas;SQL;PyTorch;TensorFlow;Tableau;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Expert;Expert;Intermediate,80,B,Analytics,Hyderabad
+28,E029,Liam Koshy,Frontend Dev,5,JavaScript;React;TypeScript;CSS;REST APIs;Node.js;GraphQL;Git,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate,100,B,Platform,Mumbai
+29,E030,Priya Rastogi,ML Engineer,8,Python;scikit-learn;pandas;NumPy;FAISS;TensorFlow;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert,100,A,Product,Chennai
+30,E031,Theodore Devi,ML Engineer,5,Python;scikit-learn;pandas;NumPy;FAISS;AWS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate;Intermediate,100,B,Data & AI,Delhi
+31,E032,Gavin Batta,ML Engineer,2,Python;scikit-learn;pandas;NumPy;Computer Vision;AWS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Beginner;Intermediate;Beginner;Beginner,80,B,Data & AI,Chennai
+32,E033,Michael Dutta,Backend Dev,1,Python;REST APIs;PostgreSQL;Docker;System Design;Agile/Scrum,Intermediate;Intermediate;Expert;Intermediate;Beginner;Intermediate,80,B,Mobile,Bangalore
+33,E034,Devansh Rajan,Frontend Dev,2,JavaScript;React;TypeScript;CSS;REST APIs;Git;Agile/Scrum,Expert;Expert;Expert;Intermediate;Beginner;Beginner;Beginner,80,B,Product,Pune
+34,E035,Upadhriti Wadhwa,DevOps,12,Docker;Kubernetes;Linux;CI/CD;System Design;Kafka;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Expert;Expert,50,C,Platform,Bangalore
+35,E036,Advay Contractor,Full Stack Dev,6,JavaScript;React;Node.js;PostgreSQL;AWS;MongoDB;GraphQL;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Expert;Expert,80,B,Engineering,Hyderabad
+36,E037,Harini Choudhury,Android Dev,3,Android;Kotlin;Java;REST APIs;Firebase;SQL;Git;Agile/Scrum,Expert;Intermediate;Intermediate;Intermediate;Beginner;Intermediate;Intermediate;Beginner,100,B,Product,Chennai
+37,E038,Radhika Dugar,ML Engineer,2,Python;scikit-learn;pandas;NumPy;FAISS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate,100,A,Mobile,Mumbai
+38,E039,Aarush Lall,Data Engineer,5,Python;SQL;AWS;pandas;NumPy;Docker;Kafka;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate;Expert,60,B,Product,Pune
+39,E040,Yashica Cherian,Backend Dev,1,Python;REST APIs;PostgreSQL;Docker;Microservices;AWS;Django;Git;Agile/Scrum,Intermediate;Intermediate;Expert;Expert;Intermediate;Intermediate;Intermediate;Beginner;Beginner,60,C,Platform,Remote
+40,E041,Yashica Issac,DevOps,9,Docker;Kubernetes;Linux;CI/CD;Terraform;AWS;System Design,Expert;Expert;Expert;Expert;Intermediate;Expert;Expert,100,B,Mobile,Delhi
+41,E042,Kashvi Edwin,Frontend Dev,7,JavaScript;React;TypeScript;CSS;Node.js;REST APIs;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate;Intermediate,80,A,Platform,Hyderabad
+42,E043,Ekiya Suresh,Full Stack Dev,9,JavaScript;React;Node.js;PostgreSQL;Docker;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate,80,B,Product,Bangalore
+43,E044,Isaac Patil,Data Scientist,4,Python;scikit-learn;pandas;SQL;AWS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert,100,A,Analytics,Hyderabad
+44,E045,Wriddhish Bhardwaj,ML Engineer,2,Python;scikit-learn;pandas;NumPy;RAG;LLMs;TensorFlow;Git,Intermediate;Expert;Intermediate;Intermediate;Intermediate;Intermediate;Intermediate;Beginner,80,C,Platform,Chennai
+45,E046,Farhan Chada,DevOps,4,Docker;Kubernetes;Linux;CI/CD;Python;System Design;Git,Expert;Expert;Expert;Expert;Expert;Intermediate;Expert,60,B,Mobile,Mumbai
+46,E047,Ekapad Walia,Data Engineer,8,Python;SQL;AWS;pandas;Docker;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate,50,C,Mobile,Pune
+47,E048,Kabir Soman,Backend Dev,5,Python;REST APIs;PostgreSQL;Docker;GraphQL;FastAPI;Node.js;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate,100,B,Engineering,Chennai
+48,E049,Alka Wable,DevOps,10,Docker;Kubernetes;Linux;CI/CD;System Design;Python;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate,60,C,Platform,Mumbai
+49,E050,Siddharth Zacharia,Data Scientist,10,Python;scikit-learn;pandas;SQL;NLP;Git,Expert;Expert;Expert;Expert;Expert;Expert,100,B,Platform,Mumbai
+50,E051,Devika Rastogi,Android Dev,4,Android;Kotlin;Java;REST APIs;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate,80,B,Engineering,Delhi
+51,E052,Raksha Varughese,DevOps,4,Docker;Kubernetes;Linux;CI/CD;Terraform;AWS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate;Expert,100,B,Mobile,Chennai
+52,E053,Jai Kota,Full Stack Dev,9,JavaScript;React;Node.js;PostgreSQL;GraphQL;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,50,C,Product,Mumbai
+53,E054,Devansh Nigam,Data Scientist,2,Python;scikit-learn;pandas;SQL;NLP;Git;Agile/Scrum,Intermediate;Expert;Intermediate;Intermediate;Beginner;Beginner;Intermediate,80,B,Platform,Pune
+54,E055,Victor Kannan,Backend Dev,8,Python;REST APIs;PostgreSQL;Docker;Microservices;AWS;Git,Expert;Expert;Expert;Expert;Expert;Expert;Expert,80,B,Platform,Delhi
+55,E056,Ekavir Bhargava,Data Engineer,8,Python;SQL;AWS;pandas;Kafka;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate,80,C,Product,Hyderabad
+56,E057,Ekansh Balay,DevOps,7,Docker;Kubernetes;Linux;CI/CD;System Design;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert,60,C,Engineering,Pune
+57,E058,Ekavir Varkey,Data Engineer,4,Python;SQL;AWS;pandas;Airflow;Docker;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert;Intermediate,100,A,Engineering,Bangalore
+58,E059,Arya Sunder,Full Stack Dev,5,JavaScript;React;Node.js;PostgreSQL;MongoDB;AWS;Docker;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate,60,C,Engineering,Pune
+59,E060,Kevin Solanki,Android Dev,9,Android;Kotlin;Java;REST APIs;SQL;Firebase;Python;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert;Expert;Intermediate,60,B,Data & AI,Pune
+60,E061,Urvashi Ray,Backend Dev,8,Python;REST APIs;PostgreSQL;Docker;Node.js;Microservices;AWS;Git,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate;Expert,100,B,Data & AI,Delhi
+61,E062,Girindra Chatterjee,Data Engineer,12,Python;SQL;AWS;pandas;Airflow;Spark;PostgreSQL;Git,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate;Intermediate,80,B,Engineering,Delhi
+62,E063,Irya Sampath,Full Stack Dev,5,JavaScript;React;Node.js;PostgreSQL;Docker;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate,60,B,Data & AI,Remote
+63,E064,Unni Bhagat,Data Engineer,5,Python;SQL;AWS;pandas;Kafka;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate,100,B,Analytics,Bangalore
+64,E065,Darsh Rau,Data Scientist,2,Python;scikit-learn;pandas;SQL;Power BI;NLP;Tableau;Git;Agile/Scrum,Expert;Expert;Expert;Intermediate;Intermediate;Intermediate;Beginner;Beginner;Intermediate,80,C,Data & AI,Remote
+65,E066,Ikbal Kothari,Backend Dev,10,Python;REST APIs;PostgreSQL;Docker;AWS;System Design;Microservices;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate;Expert;Expert,100,B,Platform,Hyderabad
+66,E067,Ranveer Yadav,Full Stack Dev,7,JavaScript;React;Node.js;PostgreSQL;Docker;MongoDB;REST APIs;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate;Intermediate;Expert,60,B,Platform,Mumbai
+67,E068,Logan Sami,Android Dev,7,Android;Kotlin;Java;REST APIs;Python;SQL;Firebase;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Expert;Intermediate;Expert,80,C,Data & AI,Delhi
+68,E069,Arya Shere,ML Engineer,10,Python;scikit-learn;pandas;NumPy;Docker;TensorFlow;LLMs,Expert;Expert;Expert;Expert;Expert;Expert;Expert,40,C,Data & AI,Delhi
+69,E070,Faqid Savant,Backend Dev,7,Python;REST APIs;PostgreSQL;Docker;FastAPI;GraphQL;AWS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate;Intermediate,80,A,Analytics,Remote
+70,E071,Chandresh Zachariah,Full Stack Dev,6,JavaScript;React;Node.js;PostgreSQL;AWS;GraphQL;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert;Intermediate,80,B,Platform,Pune
+71,E072,Girik Khalsa,Backend Dev,4,Python;REST APIs;PostgreSQL;Docker;Redis;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Intermediate;Expert,80,B,Analytics,Pune
+72,E073,Niharika Sunder,DevOps,8,Docker;Kubernetes;Linux;CI/CD;Terraform;Kafka;System Design;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate;Expert,80,A,Analytics,Hyderabad
+73,E074,Tanay Rattan,DevOps,8,Docker;Kubernetes;Linux;CI/CD;AWS;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Intermediate;Expert;Intermediate,80,A,Analytics,Chennai
+74,E075,Nitesh Raghavan,Backend Dev,9,Python;REST APIs;PostgreSQL;Docker;AWS;GraphQL;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate,100,A,Data & AI,Delhi
+75,E076,Madhavi Lanka,Full Stack Dev,3,JavaScript;React;Node.js;PostgreSQL;AWS;MongoDB;GraphQL;Git,Expert;Expert;Intermediate;Expert;Beginner;Intermediate;Intermediate;Intermediate,100,A,Analytics,Remote
+76,E077,Bhavika Sampath,Data Engineer,3,Python;SQL;AWS;pandas;Spark;Linux;Git;Agile/Scrum,Intermediate;Expert;Expert;Intermediate;Intermediate;Beginner;Intermediate;Intermediate,80,B,Engineering,Hyderabad
+77,E078,Mohammed Gupta,Backend Dev,6,Python;REST APIs;PostgreSQL;Docker;Redis;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert,60,C,Product,Pune
+78,E079,Teerth Bhardwaj,Backend Dev,6,Python;REST APIs;PostgreSQL;Docker;Node.js;Git;Agile/Scrum,Expert;Expert;Expert;Expert;Expert;Expert;Expert,80,A,Analytics,Chennai
+79,E080,Dipta Bhandari,Data Scientist,6,Python;scikit-learn;pandas;SQL;AWS;NLP;PyTorch;Git,Expert;Expert;Expert;Expert;Expert;Expert;Intermediate;Intermediate,80,B,Platform,Bangalore

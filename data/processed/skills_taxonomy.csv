@@ -1,0 +1,46 @@
+skill_id,skill_name,category,related_roles
+S001,Python,Programming,Data Engineer;Backend Dev;ML Engineer
+S002,Java,Programming,Backend Dev;Android Dev
+S003,JavaScript,Programming,Frontend Dev;Full Stack Dev
+S004,React,Frontend,Frontend Dev;Full Stack Dev
+S005,SQL,Database,Data Engineer;Backend Dev;DBA
+S006,PostgreSQL,Database,Backend Dev;DBA;Data Engineer
+S007,MongoDB,Database,Backend Dev;Full Stack Dev
+S008,AWS,Cloud,DevOps;Data Engineer;Backend Dev
+S009,Docker,DevOps,DevOps;Backend Dev
+S010,Kubernetes,DevOps,DevOps
+S011,TensorFlow,ML/AI,ML Engineer;Data Scientist
+S012,PyTorch,ML/AI,ML Engineer;Data Scientist
+S013,scikit-learn,ML/AI,ML Engineer;Data Scientist;Data Engineer
+S014,pandas,Data,Data Engineer;Data Scientist;ML Engineer
+S015,NumPy,Data,Data Engineer;Data Scientist;ML Engineer
+S016,Spark,Data,Data Engineer
+S017,Kafka,Data,Data Engineer;Backend Dev
+S018,Airflow,Data,Data Engineer
+S019,Android,Mobile,Android Dev
+S020,Kotlin,Mobile,Android Dev
+S021,Swift,Mobile,iOS Dev
+S022,iOS,Mobile,iOS Dev
+S023,TypeScript,Programming,Frontend Dev;Full Stack Dev
+S024,Node.js,Backend,Backend Dev;Full Stack Dev
+S025,FastAPI,Backend,Backend Dev
+S026,Django,Backend,Backend Dev
+S027,REST APIs,Backend,Backend Dev;Full Stack Dev
+S028,GraphQL,Backend,Backend Dev;Full Stack Dev
+S029,Git,Tools,All
+S030,Linux,Tools,DevOps;Backend Dev;Data Engineer
+S031,CI/CD,DevOps,DevOps;Backend Dev
+S032,Terraform,DevOps,DevOps
+S033,Power BI,Analytics,Data Analyst;Business Analyst
+S034,Tableau,Analytics,Data Analyst;Business Analyst
+S035,Excel,Analytics,Data Analyst;Business Analyst
+S036,NLP,ML/AI,ML Engineer;Data Scientist
+S037,Computer Vision,ML/AI,ML Engineer
+S038,LLMs,ML/AI,ML Engineer;Data Scientist
+S039,RAG,ML/AI,ML Engineer
+S040,FAISS,ML/AI,ML Engineer;Data Engineer
+S041,Project Management,Soft Skills,Project Manager
+S042,Agile/Scrum,Soft Skills,Project Manager;All
+S043,System Design,Architecture,Senior Backend Dev;Architect
+S044,Microservices,Architecture,Backend Dev;Architect
+S045,Redis,Database,Backend Dev;Full Stack Dev

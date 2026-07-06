@@ -1,0 +1,11 @@
+column_name,data_type,description,example
+employee_id,string,Unique ID for employee,E001
+name,string,Full name,Priya Sharma
+role,string,Primary job title,Data Engineer
+experience_years,integer,Total years of experience,5
+skills,string,Semicolon-separated skill names,Python;SQL;AWS;pandas
+proficiency,string,Semicolon-separated levels matching skills order,Expert;Intermediate;Beginner;Expert
+availability_pct,integer,Percentage of time available for new work (0-100),80
+cost_band,string,Salary band A=junior B=mid C=senior,B
+department,string,Team or department,Engineering
+location,string,City or Remote,Remote

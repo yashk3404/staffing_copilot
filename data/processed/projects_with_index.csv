@@ -1,0 +1,31 @@
+,project_id,project_name,client,required_roles,required_skills,min_experience,deadline_days,budget_band,priority
+0,P001,Cloud Migration — BPCL,BPCL,DevOps;Backend Dev;Data Engineer,AWS;Docker;Kubernetes;Python;Terraform,4,72,high,high
+1,P002,FinTech Mobile App v3 — PhonePe,PhonePe,Backend Dev;Android Dev;Data Engineer,Python;Android;REST APIs;SQL;AWS,2,68,high,critical
+2,P003,iOS Banking App — Axis Bank Tech,Axis Bank Tech,Android Dev;Backend Dev;Data Engineer,Swift;iOS;REST APIs;PostgreSQL;AWS,4,109,high,critical
+3,P004,Data Analytics Dashboard — HCL,HCL,Data Scientist;Frontend Dev;Data Engineer,Python;SQL;React;Power BI;Tableau,2,35,medium,medium
+4,P005,Internal HR Tool v2 — Yash Technologies,Yash Technologies,Full Stack Dev;Data Scientist,React;Python;SQL;REST APIs,1,37,low,medium
+5,P006,Cloud Migration v2 — ONGC Tech,ONGC Tech,DevOps;Backend Dev;Data Engineer,AWS;Docker;Kubernetes;Python;Terraform,3,107,high,high
+6,P007,Internal HR Tool v2 — Yash Technologies,Yash Technologies,Full Stack Dev;Data Scientist,React;Python;SQL;REST APIs,3,36,low,medium
+7,P008,iOS Banking App v3 — Axis Bank Tech,Axis Bank Tech,Android Dev;Backend Dev;Data Engineer,Swift;iOS;REST APIs;PostgreSQL;AWS,2,115,high,critical
+8,P009,E-Commerce Platform v2 — Snapdeal,Snapdeal,Full Stack Dev;Backend Dev;DevOps,React;Node.js;PostgreSQL;Docker;AWS,4,51,medium,high
+9,P010,ML Recommendation Engine — Myntra,Myntra,ML Engineer;Data Engineer;Backend Dev,Python;TensorFlow;pandas;SQL;FastAPI,3,79,high,high
+10,P011,Internal HR Tool v1 — Internal,Internal,Full Stack Dev;Data Scientist,React;Python;SQL;REST APIs,1,34,low,medium
+11,P012,RAG Chatbot — Zoho,Zoho,ML Engineer;Backend Dev;Data Engineer,Python;LLMs;RAG;FAISS;FastAPI,3,62,medium,high
+12,P013,RAG Chatbot — Zoho,Zoho,ML Engineer;Backend Dev;Data Engineer,Python;LLMs;RAG;FAISS;FastAPI,2,53,medium,high
+13,P014,Cloud Migration — BPCL,BPCL,DevOps;Backend Dev;Data Engineer,AWS;Docker;Kubernetes;Python;Terraform,3,143,high,high
+14,P015,RAG Chatbot — Zoho,Zoho,ML Engineer;Backend Dev;Data Engineer,Python;LLMs;RAG;FAISS;FastAPI,3,60,medium,high
+15,P016,Data Analytics Dashboard — HCL,HCL,Data Scientist;Frontend Dev;Data Engineer,Python;SQL;React;Power BI;Tableau,1,25,medium,medium
+16,P017,FinTech Mobile App — PhonePe,PhonePe,Backend Dev;Android Dev;Data Engineer,Python;Android;REST APIs;SQL;AWS,2,65,high,critical
+17,P018,iOS Banking App v1 — Axis Bank Tech,Axis Bank Tech,Android Dev;Backend Dev;Data Engineer,Swift;iOS;REST APIs;PostgreSQL;AWS,3,67,high,critical
+18,P019,FinTech Mobile App — Paytm,Paytm,Backend Dev;Android Dev;Data Engineer,Python;Android;REST APIs;SQL;AWS,4,59,high,critical
+19,P020,ML Recommendation Engine v2 — Flipkart,Flipkart,ML Engineer;Data Engineer;Backend Dev,Python;TensorFlow;pandas;SQL;FastAPI,5,113,high,high
+20,P021,FinTech Mobile App v2 — Paytm,Paytm,Backend Dev;Android Dev;Data Engineer,Python;Android;REST APIs;SQL;AWS,3,30,high,critical
+21,P022,RAG Chatbot v1 — Zoho,Zoho,ML Engineer;Backend Dev;Data Engineer,Python;LLMs;RAG;FAISS;FastAPI,4,72,medium,high
+22,P023,ML Recommendation Engine — Myntra,Myntra,ML Engineer;Data Engineer;Backend Dev,Python;TensorFlow;pandas;SQL;FastAPI,5,114,high,high
+23,P024,FinTech Mobile App v1 — Groww,Groww,Backend Dev;Android Dev;Data Engineer,Python;Android;REST APIs;SQL;AWS,4,54,high,critical
+24,P025,RAG Chatbot v2 — Freshworks,Freshworks,ML Engineer;Backend Dev;Data Engineer,Python;LLMs;RAG;FAISS;FastAPI,2,52,medium,high
+25,P026,Cloud Migration v1 — Reliance Jio,Reliance Jio,DevOps;Backend Dev;Data Engineer,AWS;Docker;Kubernetes;Python;Terraform,5,102,high,high
+26,P027,Data Analytics Dashboard — Infosys,Infosys,Data Scientist;Frontend Dev;Data Engineer,Python;SQL;React;Power BI;Tableau,2,31,medium,medium
+27,P028,Internal HR Tool v1 — Yash Technologies,Yash Technologies,Full Stack Dev;Data Scientist,React;Python;SQL;REST APIs,1,42,low,medium
+28,P029,Internal HR Tool — Internal,Internal,Full Stack Dev;Data Scientist,React;Python;SQL;REST APIs,1,45,low,medium
+29,P030,Cloud Migration — BPCL,BPCL,DevOps;Backend Dev;Data Engineer,AWS;Docker;Kubernetes;Python;Terraform,4,125,high,high

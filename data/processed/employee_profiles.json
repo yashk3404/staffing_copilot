@@ -1,0 +1,402 @@
+[
+  {
+    "employee_id": "E001",
+    "name": "Aryan Maharaj",
+    "profile": "Frontend Dev with 1 years of experience. Expert in React. Intermediate in JavaScript, TypeScript, CSS. Beginner in GraphQL, Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E002",
+    "name": "Udant Dewan",
+    "profile": "Full Stack Dev with 10 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, Agile/Scrum. Intermediate in GraphQL, Docker. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E003",
+    "name": "Gagan Sami",
+    "profile": "Backend Dev with 6 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker. Intermediate in GraphQL, Git. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E004",
+    "name": "Ayushman Chander",
+    "profile": "DevOps with 4 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Git. Intermediate in Kafka, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E005",
+    "name": "Viraj Tiwari",
+    "profile": "ML Engineer with 5 years of experience. Expert in Python, scikit-learn, pandas, NumPy, LLMs, Computer Vision. Intermediate in Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E006",
+    "name": "Rushil Saini",
+    "profile": "Data Engineer with 12 years of experience. Expert in Python, SQL, AWS, pandas, Airflow. Intermediate in PostgreSQL, Kafka, Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E007",
+    "name": "Saumya Mall",
+    "profile": "Backend Dev with 7 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Microservices, Agile/Scrum. Intermediate in Node.js. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E008",
+    "name": "Nathaniel Sami",
+    "profile": "Data Scientist with 6 years of experience. Expert in Python, scikit-learn, pandas, SQL. Intermediate in Power BI. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E009",
+    "name": "Arunima Dugal",
+    "profile": "Frontend Dev with 8 years of experience. Expert in JavaScript, React, TypeScript, CSS, Git. Intermediate in REST APIs, Node.js. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E010",
+    "name": "Gayathri Chaudry",
+    "profile": "ML Engineer with 8 years of experience. Expert in Python, scikit-learn, pandas, NumPy, Docker. Intermediate in Computer Vision, LLMs, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E011",
+    "name": "Lajita Chatterjee",
+    "profile": "Frontend Dev with 1 years of experience. Expert in TypeScript, CSS. Intermediate in JavaScript, React, REST APIs. Beginner in Node.js, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E012",
+    "name": "Hemangini Lalla",
+    "profile": "ML Engineer with 3 years of experience. Expert in NumPy. Intermediate in Python, scikit-learn, pandas, RAG. Beginner in FAISS, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E013",
+    "name": "Tripti Yadav",
+    "profile": "ML Engineer with 8 years of experience. Expert in Python, scikit-learn, pandas, NumPy, Git. Intermediate in Computer Vision, PyTorch. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E014",
+    "name": "Kritika Brar",
+    "profile": "Android Dev with 1 years of experience. Expert in Android, Kotlin, Java, REST APIs. Beginner in Git, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E015",
+    "name": "Janaki Handa",
+    "profile": "Frontend Dev with 1 years of experience. Intermediate in JavaScript, React, TypeScript, CSS. Beginner in Node.js, Git, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E016",
+    "name": "Chakradev Kari",
+    "profile": "Data Engineer with 11 years of experience. Expert in Python, SQL, AWS, pandas, Git, Agile/Scrum. Intermediate in PostgreSQL. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E017",
+    "name": "Fariq Kaul",
+    "profile": "Data Engineer with 7 years of experience. Expert in Python, SQL, AWS, pandas, Git. Intermediate in Spark. Available at 40% capacity."
+  },
+  {
+    "employee_id": "E018",
+    "name": "Lajita Mall",
+    "profile": "Data Engineer with 9 years of experience. Expert in Python, SQL, AWS, pandas, Git. Intermediate in Airflow, NumPy, Docker. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E019",
+    "name": "Janya Gaba",
+    "profile": "Full Stack Dev with 5 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, Git. Intermediate in GraphQL, AWS. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E020",
+    "name": "Isha Kadakia",
+    "profile": "Backend Dev with 8 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, FastAPI. Intermediate in GraphQL, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E021",
+    "name": "Ekbal Garg",
+    "profile": "Project Manager with 4 years of experience. Expert in Project Management, Agile/Scrum, Excel. Intermediate in Tableau, Git. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E022",
+    "name": "Nihal Shere",
+    "profile": "Full Stack Dev with 7 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, Git, Agile/Scrum. Intermediate in MongoDB, REST APIs. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E023",
+    "name": "Anamika Kanda",
+    "profile": "Backend Dev with 4 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Django, Git. Intermediate in Node.js, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E024",
+    "name": "Daksh Karnik",
+    "profile": "Data Engineer with 7 years of experience. Expert in Python, SQL, AWS, pandas, Spark, NumPy, Git. Intermediate in PostgreSQL, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E025",
+    "name": "Diya Rattan",
+    "profile": "Frontend Dev with 6 years of experience. Expert in JavaScript, React, TypeScript, CSS, GraphQL, Node.js. Intermediate in Git. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E026",
+    "name": "Dominic Kakar",
+    "profile": "Frontend Dev with 8 years of experience. Expert in JavaScript, React, TypeScript, CSS, Git. Intermediate in GraphQL, REST APIs. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E027",
+    "name": "Simon Tata",
+    "profile": "Backend Dev with 4 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Agile/Scrum. Intermediate in Django, System Design, Node.js. Available at 50% capacity."
+  },
+  {
+    "employee_id": "E028",
+    "name": "Tara Dhar",
+    "profile": "Data Scientist with 10 years of experience. Expert in Python, scikit-learn, pandas, SQL, TensorFlow, Tableau, Git. Intermediate in PyTorch, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E029",
+    "name": "Liam Koshy",
+    "profile": "Frontend Dev with 5 years of experience. Expert in JavaScript, React, TypeScript, CSS, REST APIs. Intermediate in Node.js, GraphQL, Git. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E030",
+    "name": "Priya Rastogi",
+    "profile": "ML Engineer with 8 years of experience. Expert in Python, scikit-learn, pandas, NumPy, FAISS, TensorFlow, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E031",
+    "name": "Theodore Devi",
+    "profile": "ML Engineer with 5 years of experience. Expert in Python, scikit-learn, pandas, NumPy, AWS. Intermediate in FAISS, Git, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E032",
+    "name": "Gavin Batta",
+    "profile": "ML Engineer with 2 years of experience. Expert in Python, scikit-learn, pandas, NumPy. Intermediate in AWS. Beginner in Computer Vision, Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E033",
+    "name": "Michael Dutta",
+    "profile": "Backend Dev with 1 years of experience. Expert in PostgreSQL. Intermediate in Python, REST APIs, Docker, Agile/Scrum. Beginner in System Design. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E034",
+    "name": "Devansh Rajan",
+    "profile": "Frontend Dev with 2 years of experience. Expert in JavaScript, React, TypeScript. Intermediate in CSS. Beginner in REST APIs, Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E035",
+    "name": "Upadhriti Wadhwa",
+    "profile": "DevOps with 12 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Kafka, Git, Agile/Scrum. Intermediate in System Design. Available at 50% capacity."
+  },
+  {
+    "employee_id": "E036",
+    "name": "Advay Contractor",
+    "profile": "Full Stack Dev with 6 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, AWS, GraphQL, Agile/Scrum. Intermediate in MongoDB. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E037",
+    "name": "Harini Choudhury",
+    "profile": "Android Dev with 3 years of experience. Expert in Android. Intermediate in Kotlin, Java, REST APIs, SQL, Git. Beginner in Firebase, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E038",
+    "name": "Radhika Dugar",
+    "profile": "ML Engineer with 2 years of experience. Expert in Python, scikit-learn, pandas, NumPy. Intermediate in FAISS, Git, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E039",
+    "name": "Aarush Lall",
+    "profile": "Data Engineer with 5 years of experience. Expert in Python, SQL, AWS, pandas, NumPy, Kafka, Agile/Scrum. Intermediate in Docker, Git. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E040",
+    "name": "Yashica Cherian",
+    "profile": "Backend Dev with 1 years of experience. Expert in PostgreSQL, Docker. Intermediate in Python, REST APIs, Microservices, AWS, Django. Beginner in Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E041",
+    "name": "Yashica Issac",
+    "profile": "DevOps with 9 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, AWS, System Design. Intermediate in Terraform. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E042",
+    "name": "Kashvi Edwin",
+    "profile": "Frontend Dev with 7 years of experience. Expert in JavaScript, React, TypeScript, CSS. Intermediate in Node.js, REST APIs, Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E043",
+    "name": "Ekiya Suresh",
+    "profile": "Full Stack Dev with 9 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, Git. Intermediate in Docker, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E044",
+    "name": "Isaac Patil",
+    "profile": "Data Scientist with 4 years of experience. Expert in Python, scikit-learn, pandas, SQL, AWS, Git, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E045",
+    "name": "Wriddhish Bhardwaj",
+    "profile": "ML Engineer with 2 years of experience. Expert in scikit-learn. Intermediate in Python, pandas, NumPy, RAG, LLMs, TensorFlow. Beginner in Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E046",
+    "name": "Farhan Chada",
+    "profile": "DevOps with 4 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Python, Git. Intermediate in System Design. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E047",
+    "name": "Ekapad Walia",
+    "profile": "Data Engineer with 8 years of experience. Expert in Python, SQL, AWS, pandas, Docker. Intermediate in Agile/Scrum. Available at 50% capacity."
+  },
+  {
+    "employee_id": "E048",
+    "name": "Kabir Soman",
+    "profile": "Backend Dev with 5 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, GraphQL. Intermediate in FastAPI, Node.js, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E049",
+    "name": "Alka Wable",
+    "profile": "DevOps with 10 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, System Design. Intermediate in Python, Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E050",
+    "name": "Siddharth Zacharia",
+    "profile": "Data Scientist with 10 years of experience. Expert in Python, scikit-learn, pandas, SQL, NLP, Git. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E051",
+    "name": "Devika Rastogi",
+    "profile": "Android Dev with 4 years of experience. Expert in Android, Kotlin, Java, REST APIs. Intermediate in Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E052",
+    "name": "Raksha Varughese",
+    "profile": "DevOps with 4 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Terraform, AWS, Agile/Scrum. Intermediate in Git. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E053",
+    "name": "Jai Kota",
+    "profile": "Full Stack Dev with 9 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, Agile/Scrum. Intermediate in GraphQL, Git. Available at 50% capacity."
+  },
+  {
+    "employee_id": "E054",
+    "name": "Devansh Nigam",
+    "profile": "Data Scientist with 2 years of experience. Expert in scikit-learn. Intermediate in Python, pandas, SQL, Agile/Scrum. Beginner in NLP, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E055",
+    "name": "Victor Kannan",
+    "profile": "Backend Dev with 8 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Microservices, AWS, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E056",
+    "name": "Ekavir Bhargava",
+    "profile": "Data Engineer with 8 years of experience. Expert in Python, SQL, AWS, pandas, Kafka. Intermediate in Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E057",
+    "name": "Ekansh Balay",
+    "profile": "DevOps with 7 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Agile/Scrum. Intermediate in System Design. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E058",
+    "name": "Ekavir Varkey",
+    "profile": "Data Engineer with 4 years of experience. Expert in Python, SQL, AWS, pandas, Airflow, Docker, Git. Intermediate in Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E059",
+    "name": "Arya Sunder",
+    "profile": "Full Stack Dev with 5 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, MongoDB, AWS, Docker. Intermediate in Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E060",
+    "name": "Kevin Solanki",
+    "profile": "Android Dev with 9 years of experience. Expert in Android, Kotlin, Java, REST APIs, Python, Git. Intermediate in SQL, Firebase, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E061",
+    "name": "Urvashi Ray",
+    "profile": "Backend Dev with 8 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Microservices, Git. Intermediate in Node.js, AWS. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E062",
+    "name": "Girindra Chatterjee",
+    "profile": "Data Engineer with 12 years of experience. Expert in Python, SQL, AWS, pandas, Spark. Intermediate in Airflow, PostgreSQL, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E063",
+    "name": "Irya Sampath",
+    "profile": "Full Stack Dev with 5 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, Docker. Intermediate in Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E064",
+    "name": "Unni Bhagat",
+    "profile": "Data Engineer with 5 years of experience. Expert in Python, SQL, AWS, pandas, Kafka, Git. Intermediate in Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E065",
+    "name": "Darsh Rau",
+    "profile": "Data Scientist with 2 years of experience. Expert in Python, scikit-learn, pandas. Intermediate in SQL, Power BI, NLP, Agile/Scrum. Beginner in Tableau, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E066",
+    "name": "Ikbal Kothari",
+    "profile": "Backend Dev with 10 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, AWS, System Design, Git, Agile/Scrum. Intermediate in Microservices. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E067",
+    "name": "Ranveer Yadav",
+    "profile": "Full Stack Dev with 7 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, MongoDB, Agile/Scrum. Intermediate in Docker, REST APIs, Git. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E068",
+    "name": "Logan Sami",
+    "profile": "Android Dev with 7 years of experience. Expert in Android, Kotlin, Java, REST APIs, SQL, Firebase, Agile/Scrum. Intermediate in Python, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E069",
+    "name": "Arya Shere",
+    "profile": "ML Engineer with 10 years of experience. Expert in Python, scikit-learn, pandas, NumPy, Docker, TensorFlow, LLMs. Available at 40% capacity."
+  },
+  {
+    "employee_id": "E070",
+    "name": "Faqid Savant",
+    "profile": "Backend Dev with 7 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, FastAPI, GraphQL. Intermediate in AWS, Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E071",
+    "name": "Chandresh Zachariah",
+    "profile": "Full Stack Dev with 6 years of experience. Expert in JavaScript, React, Node.js, PostgreSQL, AWS, GraphQL, Git. Intermediate in Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E072",
+    "name": "Girik Khalsa",
+    "profile": "Backend Dev with 4 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Agile/Scrum. Intermediate in Redis, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E073",
+    "name": "Niharika Sunder",
+    "profile": "DevOps with 8 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Terraform, System Design, Agile/Scrum. Intermediate in Kafka, Git. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E074",
+    "name": "Tanay Rattan",
+    "profile": "DevOps with 8 years of experience. Expert in Docker, Kubernetes, Linux, CI/CD, Git. Intermediate in AWS, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E075",
+    "name": "Nitesh Raghavan",
+    "profile": "Backend Dev with 9 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, AWS. Intermediate in GraphQL, Agile/Scrum. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E076",
+    "name": "Madhavi Lanka",
+    "profile": "Full Stack Dev with 3 years of experience. Expert in JavaScript, React, PostgreSQL. Intermediate in Node.js, MongoDB, GraphQL, Git. Beginner in AWS. Available at 100% capacity."
+  },
+  {
+    "employee_id": "E077",
+    "name": "Bhavika Sampath",
+    "profile": "Data Engineer with 3 years of experience. Expert in SQL, AWS. Intermediate in Python, pandas, Spark, Git, Agile/Scrum. Beginner in Linux. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E078",
+    "name": "Mohammed Gupta",
+    "profile": "Backend Dev with 6 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Redis, Git, Agile/Scrum. Available at 60% capacity."
+  },
+  {
+    "employee_id": "E079",
+    "name": "Teerth Bhardwaj",
+    "profile": "Backend Dev with 6 years of experience. Expert in Python, REST APIs, PostgreSQL, Docker, Node.js, Git, Agile/Scrum. Available at 80% capacity."
+  },
+  {
+    "employee_id": "E080",
+    "name": "Dipta Bhandari",
+    "profile": "Data Scientist with 6 years of experience. Expert in Python, scikit-learn, pandas, SQL, AWS, NLP. Intermediate in PyTorch, Git. Available at 80% capacity."
+  }
+]
