@@ -1,4 +1,5 @@
 # Staffing Copilot — The Pitch
+**[Live demo →](https://staffing-copilot.streamlit.app/)**
 
 ## The problem
 
@@ -15,7 +16,7 @@ Staffing Copilot automates the matching and assignment process end to end:
 
 ## Why it's not just "another matching script"
 
-Most matching tools stop at a ranked list. Staffing Copilot goes three steps further: it guarantees the ranked list translates into a *feasible* plan (no conflicts), it explains its own decisions in two different ways — a numeric feature breakdown (SHAP) for technical reviewers and a plain-English narrative (local LLM) for managers — and it runs the explanation layer entirely on a local model, so there's no per-query API cost and no employee data ever leaves the machine.
+Most matching tools stop at a ranked list. Staffing Copilot goes three steps further: it guarantees the ranked list translates into a *feasible* plan (no conflicts), it explains its own decisions in two different ways — a numeric feature breakdown (SHAP) for technical reviewers and a plain-English narrative (LLM) for managers — and it uses free, open-weight LLMs throughout (a local model for development, a free hosted fallback for the live demo), so there's no per-query API cost.
 
 ## Results (proof-of-concept run)
 

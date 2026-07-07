@@ -33,7 +33,7 @@ system that:
 | Clustering | KMeans (scikit-learn) | Skill profile grouping |
 | Optimization | Google OR-Tools (CP-SAT solver) | Conflict-free assignment |
 | RAG retrieval | Custom ContextRetriever | Grounds LLM explanations |
-| LLM | Ollama (llama3.2, local) | Plain-English explanations |
+| LLM | Ollama (llama3.2, local) + Groq fallback (llama-3.1-8b-instant, cloud) | Plain-English explanations |
 | Explainability | SHAP (LinearExplainer) | Feature-level score breakdown |
 | Dashboard | Streamlit | Interactive front end |
 | Data | Synthetic (Faker, Indian locale) | 80 employees, 30 projects |
@@ -149,6 +149,10 @@ Ollama running llama3.2 locally gives zero API cost, offline
 capability, and no data privacy concerns when processing employee
 information. Explanations are grounded in retrieved facts via RAG —
 not hallucinated — so model quality differences matter less.
+For the hosted Streamlit Cloud demo — which has no local Ollama
+server available — the same explanation function falls back
+automatically to Groq's free-tier API (same open-weight Llama
+family), so the live demo works without any paid infrastructure.
 
 **3. CP-SAT solver over greedy assignment**
 Greedy assignment (give each role its top-scoring candidate
@@ -183,6 +187,9 @@ development is inherently exploratory.
 - **Single-run optimization** — the current optimizer staffs a
   fixed set of projects in one call; a production system would
   re-optimize incrementally as new projects arrive
+- **Environment-dependent LLM backend** — local runs use Ollama;
+  the deployed demo uses a Groq API fallback since cloud hosting
+  has no local model server. Both are free; only the backend differs.
 
 ---
 
