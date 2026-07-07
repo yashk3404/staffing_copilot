@@ -4,7 +4,7 @@ Staffing Copilot — Streamlit Dashboard v2
 Adds LLM explanation panels and "Why not X?" runner-up view.
 
 Run:
-    venv\Scripts\python.exe -m streamlit run src/dashboard.py
+    venv\\Scripts\\python.exe -m streamlit run src/dashboard.py
 """
 
 import sys
@@ -44,32 +44,82 @@ def load_employees():
         BASE / "employees_with_index.csv"
     ).set_index("employee_id")
 
+@st.cache_data
+def load_projects():
+    return pd.read_csv(
+        BASE / "projects.csv"
+    ).set_index("project_id")
+
 retriever    = load_retriever()
 plan         = load_plan()
 score_matrix = load_score_matrix()
 employees    = load_employees()
+projects_df  = load_projects()
 
 # ── Sidebar ───────────────────────────────────────────────────────
 
 st.sidebar.title("🧠 Staffing Copilot")
 st.sidebar.markdown("---")
 
-projects = sorted(plan["project_id"].unique())
-selected_project = st.sidebar.selectbox("Select Project", projects)
+project_ids = sorted(plan["project_id"].unique())
+
+def _project_label(pid):
+    name = projects_df.loc[pid, "project_name"] \
+        if pid in projects_df.index else ""
+    return f"{pid} — {name}" if name else pid
+
+selected_project = st.sidebar.selectbox(
+    "Select Project",
+    project_ids,
+    format_func=_project_label,
+)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(
-    f"**Total projects:** {len(projects)}  \n"
+    f"**Total projects:** {len(project_ids)}  \n"
     f"**Total assignments:** {len(plan)}  \n"
     f"**Avg match score:** {plan.final_score.mean():.3f}"
 )
 
 # ── Main ──────────────────────────────────────────────────────────
 
-st.title(f"📋 Staffing Plan — {selected_project}")
+proj = projects_df.loc[selected_project] \
+    if selected_project in projects_df.index else pd.Series()
+
+st.title(f"📋 {proj.get('project_name', selected_project)}")
+st.caption(f"Project ID: {selected_project}")
+
 project_plan = plan[
     plan.project_id == selected_project
 ].reset_index(drop=True)
+
+# ── Project details ───────────────────────────────────────────────
+
+st.subheader("Project Details")
+
+d1, d2, d3, d4 = st.columns(4)
+d1.metric("Client", proj.get("client", "—"))
+d2.metric("Priority", str(proj.get("priority", "—")).title())
+d3.metric("Min. Experience", f"{proj.get('min_experience', '—')} yrs")
+d4.metric("Deadline", f"{proj.get('deadline_days', '—')} days")
+
+st.markdown(f"**Budget Band:** {str(proj.get('budget_band', '—')).title()}")
+
+required_roles = proj.get("required_roles", "")
+if required_roles:
+    st.markdown(
+        "**Required Roles:** "
+        + ", ".join(str(required_roles).split(";"))
+    )
+
+required_skills = proj.get("required_skills", "")
+if required_skills:
+    st.markdown(
+        "**Required Skills:** "
+        + ", ".join(str(required_skills).split(";"))
+    )
+
+st.markdown("---")
 
 # ── Overview table ────────────────────────────────────────────────
 
