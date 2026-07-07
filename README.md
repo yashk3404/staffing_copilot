@@ -4,6 +4,10 @@ An AI-powered employee-to-project matching and staffing optimization system. It 
 
 Built as a 30-day, end-to-end proof-of-concept during a Python AI internship. See [`docs/project_summary.md`](docs/project_summary.md) for the full write-up (design decisions, results, caveats).
 
+## Live Demo
+
+Try it here: **[staffing-copilot](https://staffing-copilot.streamlit.app/)**
+
 ## What it does
 
 1. **Semantically matches** employees to project roles using sentence embeddings + cosine similarity
@@ -22,7 +26,7 @@ Built as a 30-day, end-to-end proof-of-concept during a Python AI internship. Se
 | Clustering | KMeans (scikit-learn) |
 | Optimization | Google OR-Tools (CP-SAT solver) |
 | RAG retrieval | Custom `ContextRetriever` |
-| LLM | Ollama (`llama3.2`, local) |
+| LLM | Ollama (`llama3.2`, local) + Groq (`llama-3.1-8b-instant`, cloud fallback) |
 | Explainability | SHAP (LinearExplainer) |
 | Dashboard | Streamlit |
 | Data | Synthetic (Faker, Indian locale — 80 employees, 30 projects) |
@@ -63,6 +67,12 @@ You'll also need [Ollama](https://ollama.com) installed locally with the `llama3
 ```bash
 ollama pull llama3.2
 ```
+> **Note:** The app defaults to a local Ollama model. On the hosted
+> Streamlit Cloud demo above, there's no local Ollama server, so it
+> automatically falls back to Groq's free API for explanations instead.
+> To test that fallback locally, add a `GROQ_API_KEY` to
+> `.streamlit/secrets.toml` (get a free key at
+> [console.groq.com](https://console.groq.com)).
 
 ## Running the full pipeline
 
