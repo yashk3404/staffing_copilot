@@ -135,7 +135,7 @@ def generate_explanation(ctx: dict,
     Returns an error string (never raises) so the dashboard stays stable.
     """
     if "error" in ctx:
-        return f"⚠️ Cannot explain: {ctx['error']}"
+        return f" Cannot explain: {ctx['error']}"
 
     prompt = build_prompt(ctx)
 
@@ -147,15 +147,15 @@ def generate_explanation(ctx: dict,
         try:
             return _call_groq(prompt) + "\n\n*(via Groq — Ollama unavailable in this environment)*"
         except RuntimeError:
-            return ("⚠️ Ollama is not running, and no GROQ_API_KEY is "
+            return (" Ollama is not running, and no GROQ_API_KEY is "
                     "configured for the fallback. Start Ollama locally "
                     "with 'ollama serve', or set GROQ_API_KEY to enable "
                     "the cloud fallback.")
         except Exception as e:
-            return f"⚠️ Error calling Groq fallback: {str(e)}"
+            return f" Error calling Groq fallback: {str(e)}"
 
     except Exception as e:
-        return f"⚠️ Error calling Ollama: {str(e)}"
+        return f" Error calling Ollama: {str(e)}"
 
 
 # ── Main ──────────────────────────────────────────────────────────

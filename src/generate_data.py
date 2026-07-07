@@ -304,13 +304,13 @@ def main():
     emp_df = generate_employees(n=80)
     emp_path = OUT_DIR / "employees.csv"
     emp_df.to_csv(emp_path, index=False)
-    print(f"      ✅ Saved {len(emp_df)} employees → {emp_path}")
+    print(f"       Saved {len(emp_df)} employees → {emp_path}")
 
     print("\n[2/2] Generating 30 projects...")
     proj_df = generate_projects(n=30)
     proj_path = OUT_DIR / "projects.csv"
     proj_df.to_csv(proj_path, index=False)
-    print(f"      ✅ Saved {len(proj_df)} projects → {proj_path}")
+    print(f"       Saved {len(proj_df)} projects → {proj_path}")
 
     # Quick sanity stats
     print("\n── Employee Stats ──────────────────────────────")
@@ -323,7 +323,7 @@ def main():
     print(proj_df["priority"].value_counts().to_string())
     print(f"\nBudget bands:")
     print(proj_df["budget_band"].value_counts().to_string())
-    print("\n✅ All done!")
+    print("\n All done!")
 
 
 if __name__ == "__main__":

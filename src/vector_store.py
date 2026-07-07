@@ -39,14 +39,14 @@ class VectorStore:
 
         self.employee_df = employee_df.reset_index(drop=True)
         self.profiles    = profiles
-        print(f"  ✅ FAISS index built: {self.index.ntotal} vectors")
+        print(f"   FAISS index built: {self.index.ntotal} vectors")
 
     # ── Save / Load ───────────────────────────────────────────────
 
     def save(self, out_dir: str) -> None:
         out = Path(out_dir)
         faiss.write_index(self.index, str(out / "employee_faiss.index"))
-        print(f"  ✅ FAISS index saved → employee_faiss.index")
+        print(f"   FAISS index saved → employee_faiss.index")
 
     def load(self, data_dir: str) -> None:
         d = Path(data_dir)
@@ -56,7 +56,7 @@ class VectorStore:
         with open(d / "employee_profiles.json") as f:
             raw = json.load(f)
         self.profiles = [r["profile"] for r in raw]
-        print(f"  ✅ Loaded FAISS index: {self.index.ntotal} vectors")
+        print(f"   Loaded FAISS index: {self.index.ntotal} vectors")
 
     # ── Search ────────────────────────────────────────────────────
 

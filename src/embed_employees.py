@@ -76,7 +76,7 @@ class EmployeeEmbedder:
             self.profiles, show_progress_bar=True,
             batch_size=32, normalize_embeddings=True
         )
-        print(f"  ✅ Embeddings shape: {self.embeddings.shape}")
+        print(f"   Embeddings shape: {self.embeddings.shape}")
 
     # ── Save ──────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ class EmployeeEmbedder:
         # 3. metadata (for display in dashboard)
         self.df.to_csv(out / "employees_with_index.csv", index=True)
 
-        print(f"  ✅ Saved to {out}/")
+        print(f"   Saved to {out}/")
         print(f"     employee_embeddings.npy")
         print(f"     employee_profiles.json")
         print(f"     employees_with_index.csv")

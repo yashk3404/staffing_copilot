@@ -59,7 +59,7 @@ class ProjectEmbedder:
             self.profiles, show_progress_bar=True,
             batch_size=32, normalize_embeddings=True
         )
-        print(f"  ✅ Embeddings shape: {self.embeddings.shape}")
+        print(f"   Embeddings shape: {self.embeddings.shape}")
 
     def save(self, out_dir: str) -> None:
         out = Path(out_dir)
@@ -77,7 +77,7 @@ class ProjectEmbedder:
 
         self.df.to_csv(out / "projects_with_index.csv", index=True)
 
-        print(f"  ✅ Saved to {out}/")
+        print(f"   Saved to {out}/")
         print(f"     project_embeddings.npy")
         print(f"     project_profiles.json")
         print(f"     projects_with_index.csv")

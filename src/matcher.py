@@ -56,7 +56,7 @@ class Matcher:
         with open(d / "employee_profiles.json") as f:
             self.profiles = [r["profile"] for r in json.load(f)]
 
-        print(f"  ✅ Loaded {len(self.emp_df)} employees,"
+        print(f"   Loaded {len(self.emp_df)} employees,"
               f" {len(self.proj_df)} projects")
 
     # ── Score helpers ─────────────────────────────────────────────
@@ -287,9 +287,9 @@ class Matcher:
             out_dir / "score_matrix_full.csv", index=False
         )
 
-        print(f"\n  ✅ Saved score_matrix.csv "
+        print(f"\n   Saved score_matrix.csv "
               f"({len(score_matrix_df)} rows)")
-        print(f"  ✅ Saved score_matrix_full.csv "
+        print(f"   Saved score_matrix_full.csv "
               f"({len(score_matrix_full_df)} rows) "
               f"— includes SHAP feature columns")
         print(f"  Columns in full: "

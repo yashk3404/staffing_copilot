@@ -44,7 +44,7 @@ class ContextRetriever:
             raw_proj = json.load(f)
         self.proj_profiles = {r["project_id"]: r["profile"] for r in raw_proj}
 
-        print(f"  ✅ ContextRetriever loaded: "
+        print(f"   ContextRetriever loaded: "
               f"{len(self.plan)} assignments, "
               f"{len(self.employees)} employees, "
               f"{len(self.projects)} projects")

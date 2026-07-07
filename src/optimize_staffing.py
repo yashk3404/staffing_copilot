@@ -59,7 +59,7 @@ class StaffingOptimizer:
             objective_terms.append(score_int * self.x[key])
 
         self.model.Maximize(sum(objective_terms))
-        print(f"  ✅ Built model: {len(self.x)} variables, "
+        print(f"   Built model: {len(self.x)} variables, "
               f"{self.df['project_id'].nunique()} projects, "
               f"{self.df.groupby(['project_id','role']).ngroups} role-slots")
 
@@ -72,12 +72,12 @@ class StaffingOptimizer:
         print(f"  Solver status: {status_name}")
 
         if status == cp_model.INFEASIBLE:
-            print("  ❌ Model is INFEASIBLE — constraints cannot all be satisfied.")
+            print("   Model is INFEASIBLE — constraints cannot all be satisfied.")
             print("  Try: relaxing constraints, or reducing project count.")
             return pd.DataFrame()
 
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            print("  ⚠️ No feasible solution found.")
+            print("   No feasible solution found.")
             return pd.DataFrame()
 
         results = []
@@ -95,7 +95,7 @@ class StaffingOptimizer:
                 })
 
         result_df = pd.DataFrame(results).sort_values(["project_id", "role"])
-        print(f"  ✅ Assigned {len(result_df)} role-slots | "
+        print(f"   Assigned {len(result_df)} role-slots | "
               f"Total score: {self.solver.ObjectiveValue() / 10000:.2f}")
         return result_df
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     unstaffable = opt.find_unstaffable_roles(projects_to_staff=PROJECTS)
     if len(unstaffable):
-        print("\n  ⚠️ Unstaffable roles (zero eligible candidates):")
+        print("\n   Unstaffable roles (zero eligible candidates):")
         print(unstaffable.to_string(index=False))
 
     opt.build(projects_to_staff=PROJECTS)
@@ -144,5 +144,5 @@ if __name__ == "__main__":
 
     out_path = BASE / "staffing_plan.csv"
     plan.to_csv(out_path, index=False)
-    print(f"\n  ✅ Saved → {out_path}")
+    print(f"\n   Saved → {out_path}")
     print("── Done ────────────────────────────────────────────\n")

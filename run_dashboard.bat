@@ -2,7 +2,7 @@
 title Staffing Copilot Dashboard
 echo.
 echo ================================================
-echo   🧠 Staffing Copilot — Launching Dashboard
+echo    Staffing Copilot — Launching Dashboard
 echo ================================================
 echo.
 
