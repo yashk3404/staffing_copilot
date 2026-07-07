@@ -7,11 +7,21 @@ Run:
     venv\\Scripts\\python.exe -m streamlit run src/dashboard.py
 """
 
+import os
 import sys
 import streamlit as st
 import pandas as pd
 from pathlib import Path
 
+# Bridge Streamlit Cloud's secrets into an env var so
+# generate_explanation.py's Groq fallback can find it, both locally
+# (via .env) and when deployed (via st.secrets). Safe no-op if the
+# key isn't set anywhere.
+try:
+    if "GROQ_API_KEY" in st.secrets:
+        os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+except Exception:
+    pass  
 sys.path.append(str(Path(__file__).parent))
 from retrieve_context import ContextRetriever
 from generate_explanation import generate_explanation

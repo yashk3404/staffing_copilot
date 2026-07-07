@@ -1,25 +1,45 @@
 # src/generate_explanation.py
 """
-LLM explanation layer using Ollama (free, local).
+LLM explanation layer using Ollama (free, local) with a Groq API
+fallback (also free) for when Ollama isn't reachable — e.g. when this
+app is deployed to Streamlit Community Cloud, which has no local
+Ollama server.
 
 Takes a retrieved context dict, builds a grounded prompt,
-calls the local llama3.2 model, returns plain-English explanation.
+calls the local llama3.2 model (or Groq's hosted Llama if Ollama
+is unavailable), returns a plain-English explanation.
 
-Prerequisites:
+Local setup (unchanged):
     ollama pull llama3.2   (run once in terminal)
     ollama serve           (starts automatically on Windows after install)
+
+Cloud fallback setup (optional, only needed for deployment):
+    1. Sign up free at https://console.groq.com (no credit card)
+    2. Create an API key
+    3. Set GROQ_API_KEY as a Streamlit Cloud secret (see dashboard.py),
+       or in a local .env file if you want to test the fallback locally
 
 Run:
     python src/generate_explanation.py
 """
 
+import os
 import requests
 import json
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-OLLAMA_URL   = "http://localhost:11434/api/generate"
-DEFAULT_MODEL = "llama3.2"
+
+OLLAMA_URL    = "http://localhost:11434/api/generate"
+OLLAMA_MODEL  = "llama3.2"
+
+GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL    = "llama-3.1-8b-instant"
 
 
 def build_prompt(ctx: dict) -> str:
@@ -61,10 +81,57 @@ for the {ctx['role']} role on {project['name']}.
 If a runner-up is listed, explain in one sentence why they were not chosen."""
 
 
-def generate_explanation(ctx: dict,
-                          model: str = DEFAULT_MODEL) -> str:
+def _call_ollama(prompt: str, model: str) -> str:
+    """Call the local Ollama server. Raises requests.exceptions.ConnectionError
+    if Ollama isn't running, so the caller can fall back to Groq."""
+    response = requests.post(
+        OLLAMA_URL,
+        json={
+            "model":  model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "num_predict": 300,
+            }
+        },
+        timeout=120
+    )
+    response.raise_for_status()
+    return response.json()["response"].strip()
+
+
+def _call_groq(prompt: str, model: str = GROQ_MODEL) -> str:
     """
-    Call local Ollama model and return the explanation text.
+    Call Groq's free, OpenAI-compatible API as a fallback when Ollama
+    isn't reachable (e.g. on Streamlit Cloud). Requires GROQ_API_KEY
+    to be set as an environment variable.
+    """
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY not set")
+
+    response = requests.post(
+        GROQ_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 300,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
+def generate_explanation(ctx: dict,
+                          model: str = OLLAMA_MODEL) -> str:
+    """
+    Try local Ollama first (used when developing locally).
+    If Ollama isn't reachable, fall back to the free Groq API
+    (used automatically when deployed, e.g. on Streamlit Cloud).
     Returns an error string (never raises) so the dashboard stays stable.
     """
     if "error" in ctx:
@@ -73,25 +140,20 @@ def generate_explanation(ctx: dict,
     prompt = build_prompt(ctx)
 
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model":  model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.3,   # low = more factual, less creative
-                    "num_predict": 300,   # max tokens to generate
-                }
-            },
-            timeout=120   # llama3.2 is fast but give it room
-        )
-        response.raise_for_status()
-        return response.json()["response"].strip()
+        return _call_ollama(prompt, model)
 
     except requests.exceptions.ConnectionError:
-        return ("⚠️ Ollama is not running. "
-                "Start it by running 'ollama serve' in a terminal.")
+        # Ollama not running — try the free Groq fallback instead
+        try:
+            return _call_groq(prompt) + "\n\n*(via Groq — Ollama unavailable in this environment)*"
+        except RuntimeError:
+            return ("⚠️ Ollama is not running, and no GROQ_API_KEY is "
+                    "configured for the fallback. Start Ollama locally "
+                    "with 'ollama serve', or set GROQ_API_KEY to enable "
+                    "the cloud fallback.")
+        except Exception as e:
+            return f"⚠️ Error calling Groq fallback: {str(e)}"
+
     except Exception as e:
         return f"⚠️ Error calling Ollama: {str(e)}"
 
@@ -105,7 +167,7 @@ if __name__ == "__main__":
 
     BASE = Path(__file__).parent.parent / "data" / "processed"
 
-    print("\n── Explanation Generator (Ollama) ─────────────────")
+    print("\n── Explanation Generator (Ollama / Groq fallback) ──\n")
     retriever = ContextRetriever(str(BASE))
 
     test_slots = [
