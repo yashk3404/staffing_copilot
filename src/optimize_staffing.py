@@ -117,6 +117,82 @@ class StaffingOptimizer:
         return merged[merged.n_eligible == 0]
 
 
+def solve_ad_hoc_project(role_scores: dict,
+                          time_limit_sec: int = 10) -> pd.DataFrame:
+    """
+    Solve the assignment problem for ONE not-yet-saved project, given
+    {role: DataFrame} from Matcher.match_all_roles_adhoc().
+
+    This is a separate, lightweight function rather than a method on
+    StaffingOptimizer because that class is built around reading a
+    full multi-project score matrix from disk (score_matrix.csv). This
+    solves a single project from in-memory scores instead, and never
+    touches or reshuffles any other project's assignments — busy
+    employees should already be excluded upstream via match_adhoc()'s
+    exclude_ids, so this only decides among the remaining pool.
+
+    Constraints: exactly one employee per role, each employee used at
+    most once within this project.
+
+    Returns a DataFrame: role, employee_id, final_score.
+    Empty DataFrame if any role has zero eligible candidates, or if
+    the solve is otherwise infeasible.
+    """
+    model = cp_model.CpModel()
+    x = {}
+    rows = []
+
+    for role, df in role_scores.items():
+        eligible = df[df["eligible"] == True]
+        if eligible.empty:
+            print(f"   No eligible candidates for role '{role}' — "
+                  f"can't staff this project as specified.")
+            return pd.DataFrame()
+        for _, r in eligible.iterrows():
+            key = (role, r["employee_id"])
+            x[key] = model.NewBoolVar(f"x_{role}_{r['employee_id']}")
+            rows.append((role, r["employee_id"], r["final_score"]))
+
+    # Exactly one employee per role
+    for role in role_scores:
+        vars_for_role = [x[(r, eid)] for (r, eid, _) in rows if r == role]
+        model.Add(sum(vars_for_role) == 1)
+
+    # Each employee used at most once across this project's roles
+    all_employees = {eid for (_, eid, _) in rows}
+    for eid in all_employees:
+        vars_for_emp = [x[(role, e)] for (role, e, _) in rows if e == eid]
+        if len(vars_for_emp) > 1:
+            model.Add(sum(vars_for_emp) <= 1)
+
+    objective_terms = [
+        int(round(score * 10000)) * x[(role, eid)]
+        for (role, eid, score) in rows
+    ]
+    model.Maximize(sum(objective_terms))
+
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_limit_sec
+    status = solver.Solve(model)
+
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        print(f"   Ad-hoc solve failed: {solver.StatusName(status)}")
+        return pd.DataFrame()
+
+    assigned = []
+    for (role, eid, score) in rows:
+        if solver.Value(x[(role, eid)]) == 1:
+            assigned.append({
+                "role":        role,
+                "employee_id": eid,
+                "final_score": score,
+            })
+
+    result_df = pd.DataFrame(assigned)
+    print(f"   Ad-hoc solve OK — {len(result_df)} role(s) assigned | "
+          f"Total score: {solver.ObjectiveValue() / 10000:.2f}")
+    return result_df
+
 # ── Main ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

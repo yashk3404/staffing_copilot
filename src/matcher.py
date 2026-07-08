@@ -210,6 +210,142 @@ class Matcher:
                 verbose=True,
             )
         return results
+    
+    # ── Ad-hoc matching (for projects not yet saved to proj_df) ────
+
+    def match_adhoc(self,
+                     project:     dict,
+                     role:        str,
+                     exclude_ids: set  = None,
+                     top_k:       int  = 10,
+                     min_avail:   int  = 60,
+                     verbose:     bool = True) -> pd.DataFrame:
+        """
+        Same scoring logic as match(), for a project that hasn't been
+        saved to proj_df yet (e.g. a custom project just submitted via
+        the dashboard form). Also supports excluding a set of
+        employee_ids entirely — e.g. everyone already staffed
+        elsewhere this session, to prevent double-booking.
+
+        project: dict with keys "min_experience" (int) and
+                 "required_skills" (";"-separated str). Optional
+                 "project_name" used only for the printed header.
+        role:    the specific role to score against. An ad-hoc project
+                 has no single row to read every role from at once, so
+                 call this once per role (see match_all_roles_adhoc
+                 for the convenience wrapper).
+        """
+        if exclude_ids is None:
+            exclude_ids = set()
+
+        min_exp    = int(project["min_experience"])
+        req_skills = [s.strip()
+                       for s in project["required_skills"].split(";")]
+
+        query_text = (
+            f"{role} with skills in {', '.join(req_skills)}. "
+            f"Minimum {min_exp} years experience."
+        )
+        query_vec = self.model.encode(
+            [query_text], normalize_embeddings=True
+        )
+        sem_scores = cosine_similarity(query_vec, self.emp_emb)[0]
+
+        rows = []
+        for idx, emp in self.emp_df.iterrows():
+            if emp["employee_id"] in exclude_ids:
+                continue
+
+            avail_f = self._availability_factor(
+                emp["availability_pct"], min_avail
+            )
+            exp_f = self._experience_factor(
+                emp["experience_years"], min_exp
+            )
+
+            if (emp["availability_pct"] < min_avail or
+                    emp["experience_years"] < min_exp):
+                final_score = 0.0
+                eligible    = False
+            else:
+                sem = float(sem_scores[idx])
+                final_score = (
+                    self.W_SEMANTIC     * sem     +
+                    self.W_AVAILABILITY * avail_f +
+                    self.W_EXPERIENCE   * exp_f
+                )
+                eligible = True
+
+            skill_ov = self._skill_overlap(emp["skills"], req_skills)
+
+            rows.append({
+                "employee_id":         emp["employee_id"],
+                "name":                emp["name"],
+                "role":                emp["role"],
+                "experience_years":    emp["experience_years"],
+                "availability_pct":    emp["availability_pct"],
+                "cost_band":           emp["cost_band"],
+                "skills":              emp["skills"],
+                "semantic_score":      round(float(sem_scores[idx]), 4),
+                "availability_factor": round(avail_f, 4),
+                "experience_factor":   round(exp_f, 4),
+                "skill_overlap":       round(skill_ov, 4),
+                "final_score":         round(final_score, 4),
+                "eligible":            eligible,
+            })
+
+        result_df = (
+            pd.DataFrame(rows)
+            .sort_values("final_score", ascending=False)
+            .reset_index(drop=True)
+        )
+        result_df["rank"] = result_df.index + 1
+
+        if verbose:
+            print(f"\nAd-hoc project: "
+                  f"{project.get('project_name', '(unsaved)')}")
+            print(f"Role: {role}  |  Min exp: {min_exp}yr  |  "
+                  f"Min avail: {min_avail}%  |  "
+                  f"Excluded (busy): {len(exclude_ids)}")
+            top = result_df[result_df["eligible"]].head(top_k)
+            print(top[["rank", "name", "role", "experience_years",
+                        "availability_pct", "skill_overlap",
+                        "semantic_score", "final_score"]]
+                  .to_string(index=False))
+
+        return result_df
+
+    def match_all_roles_adhoc(self,
+                               project:     dict,
+                               exclude_ids: set  = None,
+                               top_k:       int  = 5,
+                               min_avail:   int  = 60,
+                               verbose:     bool = True) -> dict:
+        """
+        Run match_adhoc() for every role in an unsaved project's
+        required_roles list. Returns {role: DataFrame}.
+        """
+        roles = [r.strip()
+                  for r in project["required_roles"].split(";")]
+        results = {}
+
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"Ad-hoc matching for: "
+                  f"{project.get('project_name', '(unsaved)')}")
+            print(f"Roles required: {roles}")
+            print(f"{'='*60}")
+
+        for role in roles:
+            results[role] = self.match_adhoc(
+                project=project,
+                role=role,
+                exclude_ids=exclude_ids,
+                top_k=top_k,
+                min_avail=min_avail,
+                verbose=verbose,
+            )
+        return results
 
     # ── Build full score matrix ───────────────────────────────────
 
