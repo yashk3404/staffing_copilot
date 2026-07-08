@@ -114,3 +114,11 @@ pytest tests/ -v
 - The optimizer assumes full-time assignment per role; partial allocations would need extended capacity constraints.
 
 Full design rationale (why CP-SAT over greedy, why a local LLM, why two explainability layers) is in [`docs/project_summary.md`](docs/project_summary.md).
+
+
+
+## Status
+
+Originally built as a 30-day internship deliverable (see `v1.0-internship`
+tag). Actively extended since — see [CHANGELOG.md](CHANGELOG.md) for
+what's been added post-internship.
