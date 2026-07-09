@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from generate_explanation import call_llm
+from src.generate_explanation import call_llm
 
 # ── Text extraction ─────────────────────────────────────────────────
 
@@ -199,16 +199,10 @@ def suggest_skill_matches(extracted_skills: list,
                            fuzzy_threshold: float = 0.75) -> list:
     """
     Maps each LLM-extracted skill string to the taxonomy entry it
-    most likely refers to: exact match if possible, else the closest
-    fuzzy match above fuzzy_threshold, else flagged as unmatched.
-
-    Returns a list of dicts, one per extracted skill:
-      {extracted, suggested_taxonomy_skill, confidence, similarity}
-    confidence is "exact" / "fuzzy" / "none". "none" means nothing in
-    the taxonomy was close enough -- the review UI should show the
-    raw extracted text as an unchecked, clearly-flagged item rather
-    than silently dropping it, since it may be a real skill the
-    taxonomy just doesn't have yet.
+    most likely refers to: exact match, then substring containment
+    (catches "AWS (EC2/S3)" -> "aws" cases that plain SequenceMatcher
+    under-scores due to length difference), then closest fuzzy match
+    above fuzzy_threshold, else flagged as unmatched.
     """
     known = sorted(_load_taxonomy_skills(taxonomy_path))
     suggestions = []
@@ -225,6 +219,24 @@ def suggest_skill_matches(extracted_skills: list,
                 "suggested_taxonomy_skill": skill_lower,
                 "confidence": "exact",
                 "similarity": 1.0,
+            })
+            continue
+
+        # Substring containment -- catches "AWS (EC2/S3)" containing
+        # "aws", "Python programming" containing "python", etc. These
+        # are clean matches that SequenceMatcher's ratio() penalizes
+        # unfairly just for extra surrounding text.
+        substring_match = None
+        for taxonomy_skill in known:
+            if taxonomy_skill and taxonomy_skill in skill_lower:
+                if substring_match is None or len(taxonomy_skill) > len(substring_match):
+                    substring_match = taxonomy_skill
+        if substring_match:
+            suggestions.append({
+                "extracted": skill,
+                "suggested_taxonomy_skill": substring_match,
+                "confidence": "fuzzy",
+                "similarity": round(len(substring_match) / len(skill_lower), 3),
             })
             continue
 
@@ -252,7 +264,6 @@ def suggest_skill_matches(extracted_skills: list,
             })
 
     return suggestions
-
 
 def suggest_role(extracted_role,
                   valid_roles: list = VALID_ROLES,
