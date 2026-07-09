@@ -173,6 +173,133 @@ def validate_skills(extracted_skills: list,
         "taxonomy_loaded": len(known) > 0,
     }
 
+# ── Duplicate detection ──────────────────────────────────────────────
+
+import difflib
+
+
+def _normalize_name(name) -> str:
+    if not name:
+        return ""
+    return re.sub(r"\s+", " ", str(name).strip().lower())
+
+
+def find_possible_duplicates(candidate: dict,
+                              employees_df: pd.DataFrame,
+                              custom_employees: list = None,
+                              name_col: str = "name",
+                              role_col: str = "role",
+                              dept_col: str = "department",
+                              fuzzy_threshold: float = 0.88) -> list:
+    """
+    Soft duplicate check against both the real employee roster and
+    session-added custom employees. Never blocks -- returns matches
+    for the caller (dashboard review UI) to show as a warning with an
+    explicit "add anyway" override, per the plan: real names collide
+    legitimately, so this must not hard-block.
+
+    Two match tiers:
+      - "exact": normalized name is identical (same as the original
+        design sketch -- case/whitespace-insensitive equality).
+      - "fuzzy": name similarity >= fuzzy_threshold but not exact --
+        catches likely typo re-entries of the same person (e.g.
+        "Adiiti Sharma" vs "Aditi Sharma"). Kept as a separate, lower-
+        confidence tier so the review UI can label it differently
+        ("possible variation" vs "exact match") rather than treating
+        both the same.
+
+    `candidate` is expected to have at least a "name" key (e.g. the
+    dict returned by parse_resume(), or a manually-filled form dict --
+    both paths use the same review form per the plan, so this function
+    doesn't care which path produced the candidate).
+
+    Returns a list of dicts, sorted by similarity descending:
+      {employee_id, name, role, department, source, match_type, similarity}
+    "source" is "existing" or "custom". If employee_id isn't present
+    on a custom-employee dict yet (not assigned until commit), it's
+    omitted from that match's dict rather than faked.
+    """
+    candidate_norm = _normalize_name(candidate.get("name"))
+    if not candidate_norm:
+        return []  # can't compare without a name -- nothing to flag
+
+    matches = []
+
+    def _consider(emp_name, emp_role, emp_dept, emp_id, source):
+        emp_norm = _normalize_name(emp_name)
+        if not emp_norm:
+            return
+        if emp_norm == candidate_norm:
+            match_type, similarity = "exact", 1.0
+        else:
+            similarity = difflib.SequenceMatcher(None, candidate_norm, emp_norm).ratio()
+            if similarity < fuzzy_threshold:
+                return
+            match_type = "fuzzy"
+
+        entry = {
+            "name": emp_name,
+            "role": emp_role,
+            "department": emp_dept,
+            "source": source,
+            "match_type": match_type,
+            "similarity": round(similarity, 3),
+        }
+        if emp_id is not None:
+            entry["employee_id"] = emp_id
+        matches.append(entry)
+
+    # Real employee roster
+    if employees_df is not None and not employees_df.empty and name_col in employees_df.columns:
+        id_col = employees_df.index.name  # matcher.py convention: set_index("employee_id")
+        for idx, row in employees_df.iterrows():
+            _consider(
+                emp_name=row.get(name_col),
+                emp_role=row.get(role_col) if role_col in employees_df.columns else None,
+                emp_dept=row.get(dept_col) if dept_col in employees_df.columns else None,
+                emp_id=idx if id_col == "employee_id" else row.get("employee_id"),
+                source="existing",
+            )
+
+    # Session-added custom employees (list of dicts, e.g. st.session_state.custom_employees)
+    for emp in (custom_employees or []):
+        _consider(
+            emp_name=emp.get(name_col, emp.get("name")),
+            emp_role=emp.get(role_col, emp.get("role")),
+            emp_dept=emp.get(dept_col, emp.get("department")),
+            emp_id=emp.get("employee_id"),
+            source="custom",
+        )
+
+    matches.sort(key=lambda m: m["similarity"], reverse=True)
+    return matches
+
+
+def format_duplicate_warning(matches: list) -> list:
+    """
+    Turns find_possible_duplicates() output into display-ready
+    strings for the dashboard, matching the format from the design
+    doc: "E014 — Aryan Maharaj, Frontend Dev, Bangalore already
+    exists — is this the same person?"
+    Fuzzy matches get a softer phrasing since they're a weaker signal.
+    """
+    lines = []
+    for m in matches:
+        label = m.get("employee_id", "(unsaved)")
+        role = m.get("role") or "role unknown"
+        dept = m.get("department") or "dept unknown"
+        if m["match_type"] == "exact":
+            lines.append(
+                f"{label} — {m['name']}, {role}, {dept} already exists "
+                f"— is this the same person?"
+            )
+        else:
+            lines.append(
+                f"{label} — {m['name']}, {role}, {dept} looks similar "
+                f"({int(m['similarity']*100)}% name match) — possible "
+                f"duplicate or typo?"
+            )
+    return lines
 
 # ── Main entry point ────────────────────────────────────────────────
 
