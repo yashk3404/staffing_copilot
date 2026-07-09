@@ -173,6 +173,118 @@ def validate_skills(extracted_skills: list,
         "taxonomy_loaded": len(known) > 0,
     }
 
+# ── Taxonomy-constrained review suggestions ─────────────────────────
+# Backend support for the Phase 4 review form: rather than trusting
+# raw LLM-extracted skill/role strings, the form shows a taxonomy-
+# driven multi-select / dropdown pre-checked from these suggestions.
+# Whatever actually gets written to the employee record via
+# save_employee() always comes from the taxonomy or a human's
+# explicit choice -- never raw resume phrasing. This is what closes
+# the "synthetic vs. resume-extracted skill format mismatch" gap.
+
+VALID_ROLES = [
+    "Backend Dev", "Frontend Dev", "Full Stack Dev", "Android Dev",
+    "DevOps", "Data Engineer", "Data Scientist",
+]
+# ASSUMPTION -- this mirrors the role values seen in the Phase 1
+# terminal output (project role requirements + matched candidates).
+# Double check this against the actual distinct values in
+# employees_with_index.csv["role"] / projects_with_index.csv before
+# wiring it into the dashboard -- if there's an 8th role I haven't
+# seen, add it here.
+
+
+def suggest_skill_matches(extracted_skills: list,
+                           taxonomy_path: str = "data/processed/skills_taxonomy.csv",
+                           fuzzy_threshold: float = 0.75) -> list:
+    """
+    Maps each LLM-extracted skill string to the taxonomy entry it
+    most likely refers to: exact match if possible, else the closest
+    fuzzy match above fuzzy_threshold, else flagged as unmatched.
+
+    Returns a list of dicts, one per extracted skill:
+      {extracted, suggested_taxonomy_skill, confidence, similarity}
+    confidence is "exact" / "fuzzy" / "none". "none" means nothing in
+    the taxonomy was close enough -- the review UI should show the
+    raw extracted text as an unchecked, clearly-flagged item rather
+    than silently dropping it, since it may be a real skill the
+    taxonomy just doesn't have yet.
+    """
+    known = sorted(_load_taxonomy_skills(taxonomy_path))
+    suggestions = []
+
+    for raw_skill in extracted_skills:
+        skill = str(raw_skill).strip()
+        if not skill:
+            continue
+        skill_lower = skill.lower()
+
+        if skill_lower in known:
+            suggestions.append({
+                "extracted": skill,
+                "suggested_taxonomy_skill": skill_lower,
+                "confidence": "exact",
+                "similarity": 1.0,
+            })
+            continue
+
+        best_match, best_score = None, 0.0
+        for taxonomy_skill in known:
+            score = difflib.SequenceMatcher(
+                None, skill_lower, taxonomy_skill
+            ).ratio()
+            if score > best_score:
+                best_match, best_score = taxonomy_skill, score
+
+        if best_match and best_score >= fuzzy_threshold:
+            suggestions.append({
+                "extracted": skill,
+                "suggested_taxonomy_skill": best_match,
+                "confidence": "fuzzy",
+                "similarity": round(best_score, 3),
+            })
+        else:
+            suggestions.append({
+                "extracted": skill,
+                "suggested_taxonomy_skill": None,
+                "confidence": "none",
+                "similarity": round(best_score, 3),
+            })
+
+    return suggestions
+
+
+def suggest_role(extracted_role,
+                  valid_roles: list = VALID_ROLES,
+                  fuzzy_threshold: float = 0.6) -> dict:
+    """
+    Maps an LLM-extracted role string to the closest entry in the
+    fixed role set the rest of the system uses. Same pattern as
+    suggest_skill_matches() -- a default for the review form's role
+    dropdown, never an authoritative decision.
+    """
+    if not extracted_role:
+        return {"extracted": extracted_role, "suggested_role": None,
+                "confidence": "none", "similarity": 0.0}
+
+    role_norm = str(extracted_role).strip().lower()
+    for role in valid_roles:
+        if role.lower() == role_norm:
+            return {"extracted": extracted_role, "suggested_role": role,
+                     "confidence": "exact", "similarity": 1.0}
+
+    best_match, best_score = None, 0.0
+    for role in valid_roles:
+        score = difflib.SequenceMatcher(None, role_norm, role.lower()).ratio()
+        if score > best_score:
+            best_match, best_score = role, score
+
+    if best_match and best_score >= fuzzy_threshold:
+        return {"extracted": extracted_role, "suggested_role": best_match,
+                 "confidence": "fuzzy", "similarity": round(best_score, 3)}
+    return {"extracted": extracted_role, "suggested_role": None,
+             "confidence": "none", "similarity": round(best_score, 3)}
+
 # ── Duplicate detection ──────────────────────────────────────────────
 
 import difflib
