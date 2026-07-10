@@ -8,6 +8,7 @@ Run:
 
 import os
 import sys
+import tempfile
 import streamlit as st
 import pandas as pd
 from pathlib import Path
@@ -39,6 +40,14 @@ from src.project_store import (
     load_all_projects,
 )
 from src.optimize_staffing import staff_custom_project
+from src.employee_store import save_employee, list_custom_employees
+from src.resume_parser import (
+    parse_resume,
+    suggest_skill_matches,
+    suggest_role,
+    find_possible_duplicates,
+    format_duplicate_warning,
+)
 
 BASE = Path(__file__).parent.parent / "data" / "processed"
 
@@ -332,18 +341,245 @@ if mode == "Create Project":
                 st.session_state["_pending_mode"] = "Browse Projects"
                 st.rerun()
 
-# ── Mode: Add Employee (item 15 -- not built yet) ────────────────────
+# ── Mode: Add Employee (items 15 + 16) ───────────────────────────────
+#
+# Two intake tabs (CV upload / manual entry) both converge on one
+# shared review form below -- CV upload populates
+# st.session_state["employee_draft"] via parse_resume(), manual entry
+# just clears it to {} so the same form renders with blank defaults.
+# Neither tab writes to storage directly; only the confirm button at
+# the bottom of the review step ever calls save_employee().
+#
+# Item 17 (merging custom employees into premade candidate pools /
+# the matcher's solve pool) is NOT done yet -- an employee added here
+# is saved and will show up in get_employee_by_id() /
+# list_custom_employees() / load_all_employees() immediately, but
+# won't yet appear in any project's candidate pool table, sidebar
+# stats, or be eligible for staff_custom_project()'s solver. That's
+# flagged explicitly below rather than left to look like it silently
+# works everywhere.
 
 if mode == "Add Employee":
     st.title("👤 Add Employee")
-    st.info(
-        "Not built yet -- this is item 15 on the Phase 4 plan: a "
-        "tabbed CV-upload / manual-form interface converging on a "
-        "mandatory review step (using Phase 2's "
-        "suggest_skill_matches() / suggest_role() for pre-checked "
-        "suggestions), followed by item 16's duplicate-warning UI "
-        "before final commit."
+    st.caption(
+        "Add a candidate via resume upload or a manual form. Both "
+        "paths land on the same review step below before anything "
+        "is saved -- nothing commits to the roster until you "
+        "confirm there."
     )
+
+    tab_cv, tab_manual = st.tabs(["📄 Upload CV", "✏️ Manual Entry"])
+
+    with tab_cv:
+        uploaded = st.file_uploader(
+            "Resume file", type=["pdf", "docx", "txt"], key="cv_uploader"
+        )
+        if st.button("Parse Resume", disabled=uploaded is None):
+            suffix = Path(uploaded.name).suffix
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=suffix
+            ) as tmp:
+                tmp.write(uploaded.getvalue())
+                tmp_path = tmp.name
+
+            with st.spinner("Extracting and structuring resume..."):
+                parsed = parse_resume(tmp_path)
+
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass  # best-effort cleanup, not worth failing over
+
+            if parsed.get("error"):
+                st.error(f"Could not parse resume: {parsed['error']}")
+            else:
+                st.session_state["employee_draft"] = {
+                    "name":             parsed.get("name") or "",
+                    "role":             parsed.get("role") or "",
+                    "experience_years": parsed.get("experience_years") or 0,
+                    "skills":           parsed.get("skills") or [],
+                    "department":       parsed.get("department") or "",
+                    "location":         parsed.get("location") or "",
+                }
+                st.success(
+                    f"Parsed via **{parsed['backend']}**. Review and "
+                    f"edit below before saving -- nothing's committed yet."
+                )
+                unrecognized = parsed.get(
+                    "skill_validation", {}
+                ).get("unrecognized", [])
+                if unrecognized:
+                    st.caption(
+                        f"Not recognized against the skills taxonomy "
+                        f"as-extracted (still available to pick "
+                        f"manually below): {', '.join(unrecognized)}"
+                    )
+
+    with tab_manual:
+        st.caption(
+            "Starts the review form below with blank fields instead "
+            "of resume-extracted ones."
+        )
+        if st.button("Start Manual Entry"):
+            st.session_state["employee_draft"] = {}
+
+    st.markdown("---")
+    st.subheader("Review & Confirm")
+
+    if "employee_draft" not in st.session_state:
+        st.caption(
+            "Upload and parse a resume above, or click **Start "
+            "Manual Entry**, to begin."
+        )
+    else:
+        draft = st.session_state["employee_draft"]
+
+        # Real roster role values, not resume_parser.py's hardcoded
+        # VALID_ROLES -- that list is explicitly flagged in its own
+        # docstring as an unverified assumption, and this dropdown
+        # must only ever offer values the matcher actually recognizes.
+        role_options = sorted(employees["role"].unique())
+        skill_options = sorted(
+            pd.read_csv(BASE / "skills_taxonomy.csv")["skill_name"].unique()
+        )
+        skill_lower_to_display = {s.lower(): s for s in skill_options}
+
+        # Pre-check skills via Phase 2 item 8's suggest_skill_matches()
+        # -- only exact/fuzzy confidence get pre-checked; "none"
+        # confidence suggestions are left unchecked and surfaced as
+        # plain text instead, since a wrong guess here is worse than
+        # leaving it to a human.
+        draft_skills = draft.get("skills") or []
+        skill_suggestions = (
+            suggest_skill_matches(draft_skills) if draft_skills else []
+        )
+        suggested_display_skills = sorted({
+            skill_lower_to_display[s["suggested_taxonomy_skill"]]
+            for s in skill_suggestions
+            if s["suggested_taxonomy_skill"] in skill_lower_to_display
+        })
+        unmatched_skills = [
+            s["extracted"] for s in skill_suggestions
+            if s["suggested_taxonomy_skill"] is None
+        ]
+
+        # Pre-select the role dropdown via suggest_role(), passing the
+        # real role_options as valid_roles so any suggestion is
+        # guaranteed to actually be a selectable option.
+        role_guess = suggest_role(draft.get("role"), valid_roles=role_options)
+        suggested_role = role_guess["suggested_role"]
+        role_index = (
+            role_options.index(suggested_role)
+            if suggested_role in role_options else 0
+        )
+
+        with st.form("employee_review_form"):
+            c1, c2 = st.columns(2)
+            f_name = c1.text_input("Name", value=draft.get("name", "") or "")
+            f_role = c2.selectbox("Role", role_options, index=role_index)
+
+            c3, c4 = st.columns(2)
+            f_exp = c3.number_input(
+                "Experience (yrs)", min_value=0, max_value=50,
+                value=int(draft.get("experience_years") or 0),
+            )
+            f_avail = c4.number_input(
+                "Availability (%)", min_value=0, max_value=100, value=100,
+                help=(
+                    "Not extracted from resumes -- this is a business "
+                    "input, set it here."
+                ),
+            )
+
+            c5, c6 = st.columns(2)
+            f_dept = c5.text_input(
+                "Department", value=draft.get("department", "") or ""
+            )
+            f_loc = c6.text_input(
+                "Location", value=draft.get("location", "") or ""
+            )
+
+            f_skills = st.multiselect(
+                "Skills", skill_options, default=suggested_display_skills,
+            )
+            if unmatched_skills:
+                st.caption(
+                    f"Extracted but not in the taxonomy (not "
+                    f"pre-checked above -- add the closest real skill "
+                    f"manually if relevant): {', '.join(unmatched_skills)}"
+                )
+
+            review_submitted = st.form_submit_button("Review Candidate")
+
+        if review_submitted:
+            if not f_name or not f_role:
+                st.error("Name and role are required.")
+            else:
+                candidate = {
+                    "name":             f_name,
+                    "role":             f_role,
+                    "experience_years": int(f_exp),
+                    "availability_pct": int(f_avail),
+                    # Skills-format fix: the real roster stores skills
+                    # as a semicolon-separated string ("Python;AWS;
+                    # Docker"), same as required_skills on projects --
+                    # not the raw list resume_parser.py extracts or
+                    # the multiselect returns. save_employee()'s
+                    # record must match employees_with_index.csv's
+                    # actual column format, or downstream code that
+                    # splits on ";" (candidate pool displays, matcher
+                    # input) would silently misread it.
+                    "skills":           ";".join(f_skills),
+                    "department":       f_dept,
+                    "location":         f_loc,
+                }
+                st.session_state["employee_candidate"] = candidate
+                st.session_state["employee_dup_matches"] = (
+                    find_possible_duplicates(
+                        candidate, employees, list_custom_employees()
+                    )
+                )
+
+        if "employee_candidate" in st.session_state:
+            candidate   = st.session_state["employee_candidate"]
+            dup_matches = st.session_state.get("employee_dup_matches", [])
+
+            st.markdown("---")
+            if dup_matches:
+                warning_lines = "\n\n".join(
+                    f"- {line}" for line in format_duplicate_warning(dup_matches)
+                )
+                st.warning(
+                    f"⚠️ Possible duplicate(s) found -- review before "
+                    f"confirming:\n\n{warning_lines}"
+                )
+            else:
+                st.success(
+                    "✅ No potential duplicates found against the "
+                    "current roster."
+                )
+
+            bcol1, bcol2 = st.columns(2)
+            confirm_label = "➕ Add Anyway" if dup_matches else "➕ Add Employee"
+
+            if bcol1.button(confirm_label, key="confirm_add_employee"):
+                emp_id = save_employee(candidate)
+                st.success(f"Employee **{emp_id}** added: {candidate['name']}")
+                st.caption(
+                    "Not yet visible in project candidate pools, "
+                    "sidebar stats, or eligible for the solver -- "
+                    "that's item 17 (merging custom employees into "
+                    "existing views), still to come."
+                )
+                st.session_state.pop("employee_candidate", None)
+                st.session_state.pop("employee_dup_matches", None)
+                st.session_state.pop("employee_draft", None)
+
+            if bcol2.button("✏️ Discard & Start Over", key="discard_employee"):
+                st.session_state.pop("employee_candidate", None)
+                st.session_state.pop("employee_dup_matches", None)
+                st.session_state.pop("employee_draft", None)
+                st.rerun()
 
 # ── Mode: Browse Projects ────────────────────────────────────────────
 
