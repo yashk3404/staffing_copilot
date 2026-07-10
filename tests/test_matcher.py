@@ -6,6 +6,7 @@ Run: pytest tests/test_matcher.py -v
 
 import pytest
 import sys
+import pandas as pd
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
@@ -30,7 +31,6 @@ def test_matcher_loads(matcher):
 
 
 def test_match_returns_dataframe(matcher):
-    import pandas as pd
     result = matcher.match("P001", "Backend Dev", verbose=False)
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 80   # one row per employee
@@ -100,8 +100,50 @@ def test_invalid_project_raises(matcher):
 
 
 def test_score_matrix_file_exists():
-    import pandas as pd
     sm = pd.read_csv(DATA_DIR / "score_matrix.csv")
     assert len(sm) == 6800, f"Expected 6800 rows, got {len(sm)}"
     assert "final_score" in sm.columns
     assert "eligible"    in sm.columns
+
+
+# ── Phase 5 / Item 19: Custom Employee Pipeline Verification ─────────
+
+def test_dynamic_custom_employee_embedding(matcher):
+    """
+    Test that injecting a custom employee (not in the precomputed embeddings)
+    successfully generates an on-the-fly embedding and returns a valid match score.
+    """
+    # Create a mock custom employee dataframe
+    custom_emp = pd.DataFrame([{
+        "employee_id": "CE999",
+        "name": "Test Custom Employee",
+        "role": "Backend Dev",
+        "experience_years": 8,
+        "availability_pct": 100,
+        "cost_band": "medium",
+        "skills": "Python;FastAPI;PostgreSQL;Docker",
+        "department": "Engineering",
+        "location": "Remote"
+    }])
+    
+    # Concat with a slice of the real roster to simulate a merged pool
+    merged_pool = pd.concat([matcher.emp_df.head(5), custom_emp], ignore_index=True)
+    
+    # Run the match for a Backend Dev role
+    result = matcher.match(
+        project_id="P001", 
+        role="Backend Dev", 
+        top_k=10, 
+        verbose=False, 
+        employees_df=merged_pool
+    )
+    
+    # Assertions
+    assert not result.empty, "Match result should not be empty"
+    assert "CE999" in result["employee_id"].values, "Custom employee was dropped from the candidate pool"
+    
+    # Check that the custom employee received a valid score
+    ce_result = result[result["employee_id"] == "CE999"].iloc[0]
+    assert 0.0 <= ce_result["semantic_score"] <= 1.0, "Semantic score out of bounds"
+    assert 0.0 <= ce_result["final_score"] <= 1.0, "Final score out of bounds"
+    assert ce_result["eligible"] == True, "Custom employee should be marked eligible based on stats"
