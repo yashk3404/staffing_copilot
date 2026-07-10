@@ -40,7 +40,7 @@ from src.project_store import (
     load_all_projects,
 )
 from src.optimize_staffing import staff_custom_project
-from src.employee_store import save_employee, list_custom_employees
+from src.employee_store import save_employee, list_custom_employees, load_all_employees
 from src.resume_parser import (
     parse_resume,
     suggest_skill_matches,
@@ -56,6 +56,95 @@ st.set_page_config(
     page_icon="🧠",
     layout="wide",
 )
+
+# ── Item 18 -- visual polish ─────────────────────────────────────────
+#
+# One shared <style> block, injected once here, plus small HTML
+# builders (badge / chip) reused by every section below that used to
+# be a flat st.metric() or plain-text label -- Project Details and
+# Assigned Team both read off the same palette now instead of each
+# section inventing its own. Colors use translucent/rgba backgrounds
+# rather than solid white/black so cards stay legible on both light
+# and dark Streamlit themes.
+
+st.markdown("""
+<style>
+.sc-card {
+    background: rgba(127, 127, 127, 0.06);
+    border: 1px solid rgba(127, 127, 127, 0.18);
+    border-left: 4px solid #6C63FF;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+}
+.sc-card-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 2px;
+}
+.sc-card-sub {
+    opacity: 0.65;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+.sc-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 0.88rem;
+    opacity: 0.9;
+}
+.sc-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #1a1a1a;
+    margin-right: 6px;
+}
+.sc-chip {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    background: rgba(127, 127, 127, 0.14);
+    margin: 2px 4px 2px 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Priority runs low -> critical; budget runs low -> high. Both follow
+# the plan's "red/yellow/green" anchor (green = low/cheap, red = the
+# thing that needs attention), with an amber/orange step in between
+# so all four priority levels -- not just the three named in the plan
+# -- get a distinct color rather than two of them sharing one.
+PRIORITY_COLORS = {
+    "low":      "#8BD17C",
+    "medium":   "#F5D061",
+    "high":     "#F2A65A",
+    "critical": "#F16A6A",
+}
+BUDGET_COLORS = {
+    "low":    "#8BD17C",
+    "medium": "#F5D061",
+    "high":   "#F16A6A",
+}
+
+
+def _badge(label: str, color: str) -> str:
+    return f'<span class="sc-badge" style="background:{color}">{label}</span>'
+
+
+def priority_badge(value) -> str:
+    v = str(value).lower()
+    return _badge(str(value).title() or "—", PRIORITY_COLORS.get(v, "#B0B0B0"))
+
+
+def budget_badge(value) -> str:
+    v = str(value).lower()
+    return _badge(str(value).title() or "—", BUDGET_COLORS.get(v, "#B0B0B0"))
 
 # ── Load data ─────────────────────────────────────────────────────
 
@@ -97,6 +186,30 @@ plan         = load_plan()
 score_matrix = load_score_matrix()
 employees    = load_employees()
 projects_df  = load_projects()
+
+# ── Item 17 -- merge custom employees into existing views ───────────
+#
+# load_all_employees() concats the real roster with any session-added
+# CE0xx employees (employee_store.py). This is the single merge point
+# every *display* call site below reads through instead of `employees`
+# directly, so a custom employee now shows up in the Assigned Team
+# table, Role Details panels, and the Create/Add Employee role
+# dropdowns -- not just in get_employee_by_id() / list_custom_employees()
+# like before.
+#
+# Kept as a SEPARATE variable rather than reassigning `employees`, for
+# two reasons:
+#   1. get_capacity_summary() already calls load_all_employees()
+#      internally on whatever employees_df it's given -- passing it
+#      the already-merged frame would concat the custom employees in
+#      twice.
+#   2. find_possible_duplicates() below takes the real roster and
+#      list_custom_employees() as two separate arguments by design --
+#      passing it a pre-merged frame would check every custom
+#      employee against itself and double up warnings.
+# Not @st.cache_data'd: it reads live st.session_state, which changes
+# every time an employee gets added.
+all_employees_df = load_all_employees(employees)
 
 # ── Sidebar: mode switch (item 13) ──────────────────────────────────
 #
@@ -225,7 +338,7 @@ if mode == "Create Project":
         "this session."
     )
 
-    role_options  = sorted(employees["role"].unique())
+    role_options  = sorted(all_employees_df["role"].dropna().unique())
     skill_options = sorted(
         pd.read_csv(BASE / "skills_taxonomy.csv")["skill_name"].unique()
     )
@@ -301,7 +414,8 @@ if mode == "Create Project":
             matcher = load_matcher()
             with st.spinner("Matching and solving..."):
                 result = staff_custom_project(
-                    project, matcher, plan, verbose=False
+                    project, matcher, plan,
+                    employees_df=all_employees_df, verbose=False
                 )
 
             if result.empty:
@@ -315,8 +429,8 @@ if mode == "Create Project":
                 st.success("✅ Project staffed")
                 display = result.copy()
                 display["name"] = display["employee_id"].apply(
-                    lambda eid: employees.loc[eid, "name"]
-                    if eid in employees.index else eid
+                    lambda eid: all_employees_df.loc[eid, "name"]
+                    if eid in all_employees_df.index else eid
                 )
                 st.dataframe(
                     display[["role", "name", "employee_id", "final_score"]],
@@ -351,13 +465,16 @@ if mode == "Create Project":
 # the bottom of the review step ever calls save_employee().
 #
 # Item 17 (merging custom employees into premade candidate pools /
-# the matcher's solve pool) is NOT done yet -- an employee added here
-# is saved and will show up in get_employee_by_id() /
-# list_custom_employees() / load_all_employees() immediately, but
-# won't yet appear in any project's candidate pool table, sidebar
-# stats, or be eligible for staff_custom_project()'s solver. That's
-# flagged explicitly below rather than left to look like it silently
-# works everywhere.
+# the matcher's solve pool) is done as of this pass -- see
+# all_employees_df above and the employees_df= plumbing through
+# Matcher.match()/match_adhoc() and staff_custom_project(). One piece
+# is deliberately still out of scope: premade projects' "Full
+# Candidate Pool" table (below, in Browse Projects mode) reads the
+# offline score_matrix.csv, which is generated against the premade
+# roster only -- making a custom employee appear there too would mean
+# replacing that static read with a live matcher.match_all_roles()
+# call per premade project, a bigger architectural change than "swap
+# the call site," and not what this item's plan describes.
 
 if mode == "Add Employee":
     st.title("👤 Add Employee")
@@ -438,7 +555,7 @@ if mode == "Add Employee":
         # VALID_ROLES -- that list is explicitly flagged in its own
         # docstring as an unverified assumption, and this dropdown
         # must only ever offer values the matcher actually recognizes.
-        role_options = sorted(employees["role"].unique())
+        role_options = sorted(all_employees_df["role"].dropna().unique())
         skill_options = sorted(
             pd.read_csv(BASE / "skills_taxonomy.csv")["skill_name"].unique()
         )
@@ -566,10 +683,15 @@ if mode == "Add Employee":
                 emp_id = save_employee(candidate)
                 st.success(f"Employee **{emp_id}** added: {candidate['name']}")
                 st.caption(
-                    "Not yet visible in project candidate pools, "
-                    "sidebar stats, or eligible for the solver -- "
-                    "that's item 17 (merging custom employees into "
-                    "existing views), still to come."
+                    "Now eligible everywhere: shows up in the "
+                    "Assigned Team / Role Details views, counts "
+                    "toward the capacity check, and is a candidate "
+                    "for the solver on custom projects. The one "
+                    "exception is premade projects' \"Full Candidate "
+                    "Pool\" table below, which still reads the "
+                    "offline score_matrix.csv (premade employees "
+                    "only) rather than live-matching -- a separate, "
+                    "bigger change."
                 )
                 st.session_state.pop("employee_candidate", None)
                 st.session_state.pop("employee_dup_matches", None)
@@ -624,27 +746,34 @@ if mode == "Browse Projects":
 
     st.subheader("Project Details")
 
-    d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Client", proj.get("client", "—"))
-    d2.metric("Priority", str(proj.get("priority", "—")).title())
-    d3.metric("Min. Experience", f"{proj.get('min_experience', '—')} yrs")
-    d4.metric("Deadline", f"{proj.get('deadline_days', '—')} days")
+    roles_chips = "".join(
+        f'<span class="sc-chip">{r}</span>'
+        for r in str(proj.get("required_roles", "")).split(";") if r
+    )
+    skills_chips = "".join(
+        f'<span class="sc-chip">{s}</span>'
+        for s in str(proj.get("required_skills", "")).split(";") if s
+    )
 
-    st.markdown(f"**Budget Band:** {str(proj.get('budget_band', '—')).title()}")
+    card_html = (
+        '<div class="sc-card">'
+        f'<div class="sc-card-sub">Client: {proj.get("client", "—")}</div>'
+        '<div style="margin-bottom:10px;">'
+        f'{priority_badge(proj.get("priority", "—"))}'
+        f'{budget_badge(proj.get("budget_band", "—"))}'
+        '</div>'
+        '<div class="sc-row">'
+        f'<span>⏱ <b>{proj.get("deadline_days", "—")}</b> days deadline</span>'
+        f'<span>🎓 <b>{proj.get("min_experience", "—")}</b> yrs min. experience</span>'
+        '</div>'
+    )
+    if roles_chips:
+        card_html += f'<div style="margin-top:10px;"><b>Roles:</b> {roles_chips}</div>'
+    if skills_chips:
+        card_html += f'<div style="margin-top:6px;"><b>Skills:</b> {skills_chips}</div>'
+    card_html += '</div>'
 
-    required_roles = proj.get("required_roles", "")
-    if required_roles:
-        st.markdown(
-            "**Required Roles:** "
-            + ", ".join(str(required_roles).split(";"))
-        )
-
-    required_skills = proj.get("required_skills", "")
-    if required_skills:
-        st.markdown(
-            "**Required Skills:** "
-            + ", ".join(str(required_skills).split(";"))
-        )
+    st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -662,7 +791,7 @@ if mode == "Browse Projects":
     display_rows = []
     for _, row in project_plan.iterrows():
         emp_id = row["employee_id"]
-        emp    = employees.loc[emp_id] if emp_id in employees.index \
+        emp    = all_employees_df.loc[emp_id] if emp_id in all_employees_df.index \
                  else pd.Series()
         score  = row["final_score"]
         display_rows.append({
@@ -675,7 +804,22 @@ if mode == "Browse Projects":
         })
 
     if display_rows:
-        st.dataframe(pd.DataFrame(display_rows), width="stretch")
+        n_cols = 3
+        team_cols = st.columns(n_cols)
+        for i, row in enumerate(display_rows):
+            with team_cols[i % n_cols]:
+                st.markdown(
+                    '<div class="sc-card">'
+                    f'<div class="sc-card-title">{row["Employee"]}</div>'
+                    f'<div class="sc-card-sub">{row["Role"]} · '
+                    f'{row["Job Title"]}</div>'
+                    '<div class="sc-row">'
+                    f'<span>📈 {row["Experience (yr)"]} yrs</span>'
+                    f'<span>🕒 {row["Availability (%)"]}% avail.</span>'
+                    f'<span>🎯 {row["Match Score"]}</span>'
+                    '</div></div>',
+                    unsafe_allow_html=True,
+                )
 
     # ── Per-role detail panels ──────────────────────────────────────
 
@@ -693,7 +837,7 @@ if mode == "Browse Projects":
     for _, row in project_plan.iterrows():
         role   = row["role"]
         emp_id = row["employee_id"]
-        emp    = employees.loc[emp_id] if emp_id in employees.index \
+        emp    = all_employees_df.loc[emp_id] if emp_id in all_employees_df.index \
                  else pd.Series()
         score  = row["final_score"]
         score_label = f"{score:.4f}" if pd.notna(score) else "—"
@@ -809,7 +953,11 @@ if mode == "Browse Projects":
         )
     else:
         st.caption(
-            "Top 10 eligible candidates per role, ranked by match score.")
+            "Top 10 eligible candidates per role, ranked by match "
+            "score. Sourced from the offline score_matrix.csv, so "
+            "session-added custom employees won't appear here even "
+            "though they're now eligible for custom projects' solves."
+        )
 
         for _, row in project_plan.iterrows():
             role        = row["role"]
@@ -837,13 +985,13 @@ if mode == "Browse Projects":
                 lambda eid: "✅" if eid == assigned_id else ""
             )
 
-            st.markdown(f"**{role} — top 10:**")
-            st.dataframe(
-                pool[["rank", "assigned", "name",
-                      "employee_id", "final_score"]],
-                width="stretch",
-                hide_index=True,
-            )
+            with st.expander(f"**{role}** — top 10 candidates"):
+                st.dataframe(
+                    pool[["rank", "assigned", "name",
+                          "employee_id", "final_score"]],
+                    width="stretch",
+                    hide_index=True,
+                )
 
     # ── SHAP Panel (added Day 28) ────────────────────────────────────
 

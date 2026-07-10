@@ -198,6 +198,7 @@ def solve_ad_hoc_project(role_scores: dict,
 def staff_custom_project(project: dict,
                           matcher,
                           staffing_plan_df: pd.DataFrame,
+                          employees_df: pd.DataFrame = None,
                           min_avail: int = 60,
                           time_limit_sec: int = 10,
                           verbose: bool = True) -> pd.DataFrame:
@@ -221,6 +222,14 @@ def staff_custom_project(project: dict,
     staffing_plan_df:  the premade staffing_plan.csv, read by the
                        caller -- same "only one place reads the real
                        path" convention as project_store.py.
+    employees_df:      item 17 -- pass a merged pool (e.g.
+                       employee_store.load_all_employees(employees))
+                       so session-added custom employees are actually
+                       eligible for this solve, not just the premade
+                       roster. Defaults to None, which makes
+                       match_all_roles_adhoc() fall back to the
+                       matcher's own premade-only self.emp_df --
+                       existing callers are unaffected.
 
     Imports project_store functions locally (not at module level) to
     avoid a hard import-time dependency between optimize_staffing.py
@@ -246,6 +255,7 @@ def staff_custom_project(project: dict,
         exclude_ids=busy,
         min_avail=min_avail,
         verbose=verbose,
+        employees_df=employees_df,
     )
 
     result_df = solve_ad_hoc_project(role_scores, time_limit_sec=time_limit_sec)
