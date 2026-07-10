@@ -5,6 +5,14 @@
 **Duration:** 30 days  
 **Type:** End-to-end AI system (proof of concept)
 
+> This document is the write-up of the original 30-day internship
+> deliverable (`v1.0-internship` tag) and is kept as-is for that
+> record. For what's been built since — custom employee/project
+> intake, resume parsing, the merged matching pool, the expanded
+> test suite — see the "Post-Internship Extensions (v2.0)" section
+> at the end, and [`../CHANGELOG.md`](../CHANGELOG.md) for the full
+> history.
+
 ---
 
 ## What It Does
@@ -203,4 +211,84 @@ development is inherently exploratory.
 | 2 | Ranked scored shortlist from requirements | embeddings, FAISS, matcher |
 | 3 | Conflict-free staffing plan | OR-Tools optimizer |
 | 4 | End-to-end demo with explanations | RAG, LLM, SHAP, dashboard |
-| day 29–30 | Integration test + documentation 
+| day 29–30 | Integration test + documentation | test suite, README, this doc |
+
+---
+
+## Post-Internship Extensions (v2.0)
+
+Everything below was built after the 30-day internship deliverable
+above; the results, tech stack, and structure sections above describe
+that original snapshot and are left unchanged as a historical record.
+Full commit-level detail is in [`../CHANGELOG.md`](../CHANGELOG.md).
+
+### What was added
+
+- **Custom employee intake** — add an employee via a manual form or
+  by uploading a CV (PDF/DOCX/TXT), parsed through the same
+  Ollama/Groq LLM pipeline `generate_explanation.py` already used,
+  then validated against `skills_taxonomy.csv` and reviewed by a
+  human before being committed. Assigned a CE0xx id that can never
+  collide with the real E0xx range.
+- **Custom project intake** — create an ad-hoc project through the
+  dashboard, with a capacity pre-check (how many eligible, available
+  people exist for each required role) shown before running the
+  matcher/solver, so a hopeless request fails fast and cheaply rather
+  than after a full CP-SAT solve.
+- **Merged-pool matching** — the hardest piece. `Matcher.match()` and
+  `match_adhoc()` now take an optional merged `employees_df`
+  (real roster + session-added custom employees). Any employee not
+  already in the precomputed embedding matrix gets embedded on the
+  fly, from a profile string built the same way the original
+  `embed_employees.py` pipeline built one — so a custom employee is
+  scored in the same semantic space, not bolted on as a second-class
+  candidate. This makes custom employees real candidates for
+  `staff_custom_project()`'s CP-SAT solve, not just stored records.
+- **Duplicate detection** — soft (never-blocking) exact and fuzzy
+  name matching against both the real roster and other custom
+  employees, so re-uploading the same person's resume gets flagged
+  for human confirmation instead of silently creating a second
+  record.
+- **Dashboard visual pass** — card-based layout for Project Details
+  and Assigned Team, color-coded priority/budget badges, collapsible
+  per-role candidate-pool sections.
+- **Test suite** — grown from 31 to 95 tests, adding coverage for the
+  entire storage layer (`employee_store.py`, `project_store.py`) and
+  the pure-logic half of `resume_parser.py` (skill/role suggestion,
+  duplicate detection), neither of which had any test coverage
+  before this pass.
+
+### Design decisions specific to this phase
+
+**Session-state storage, deliberately not "real" persistence yet.**
+Every new record — custom employees and projects — lives in
+`st.session_state`, gone on reload. This was a deliberate sequencing
+choice: build and verify the intake → matching → solving pipeline
+first, then decide on a persistence backend once the shape of what
+needs persisting is fully known, rather than guessing a schema
+upfront. Every call site already reads through `employee_store.py` /
+`project_store.py`, so this is meant to be a swap of internals, not a
+rewrite of callers, when that decision is made.
+
+**Merging at the data layer, not duplicating logic per call site.**
+`employee_store.load_all_employees()` / `project_store.load_all_projects()`
+are the single places that combine real + custom records. Every
+display and matching call site reads through these instead of each
+inventing its own "check custom, then check real" logic — the
+alternative (thread a custom-employee check into every place that
+touches the roster) would have meant the same merge bug being
+possible to introduce in N different places instead of one.
+
+### Known limitations carried into v2.0
+
+- Persistence is in-memory/session-only (see above) — restarting the
+  app loses every custom employee and project.
+- Premade projects' "Full Candidate Pool" table still reads the
+  offline `score_matrix.csv` rather than live-matching, so a custom
+  employee is eligible for custom-project solves but won't appear in
+  that specific table. Making it live would mean replacing a static
+  file read with a per-render matcher call — a larger change than
+  what shipped here, and intentionally deferred.
+- Role-aware skill validation (flagging a skill that doesn't fit the
+  selected role, using `skills_taxonomy.csv`'s `related_roles`
+  column) is scoped but not yet built.

@@ -15,7 +15,8 @@ Try it here: **[staffing-copilot](https://staffing-copilot.streamlit.app/)**
 3. **Optimally assigns** employees across multiple projects at once using a CP-SAT constraint solver — no double-booking, no conflicts
 4. **Explains** every staffing decision in plain English using a locally-running LLM (zero API cost)
 5. **Shows** which numeric features drove each match score using SHAP
-6. **Presents** everything through an interactive Streamlit dashboard
+6. **Takes custom projects and employees** — create an ad-hoc project or add an employee (manual form or CV upload, parsed via the same LLM pipeline) mid-session, and both become real candidates in the matcher/solver, not just stored records
+7. **Presents** everything through an interactive Streamlit dashboard
 
 ## Tech stack
 
@@ -27,10 +28,11 @@ Try it here: **[staffing-copilot](https://staffing-copilot.streamlit.app/)**
 | Optimization | Google OR-Tools (CP-SAT solver) |
 | RAG retrieval | Custom `ContextRetriever` |
 | LLM | Ollama (`llama3.2`, local) + Groq (`llama-3.1-8b-instant`, cloud fallback) |
+| Resume/CV parsing | pdfplumber (PDF), python-docx (DOCX) + the same Ollama/Groq LLM pipeline |
 | Explainability | SHAP (LinearExplainer) |
 | Dashboard | Streamlit |
-| Data | Synthetic (Faker, Indian locale — 80 employees, 30 projects) |
-| Testing | pytest (31 tests) |
+| Data | Synthetic (Faker, Indian locale — 80 employees, 30 projects) + session-added custom employees/projects |
+| Testing | pytest (95 tests) |
 
 ## Project structure
 
@@ -41,15 +43,19 @@ staffing_copilot/
 │   ├── embed_employees.py       # Employee embedding pipeline
 │   ├── embed_projects.py        # Project embedding pipeline
 │   ├── vector_store.py          # FAISS vector store
-│   ├── matcher.py               # Combined match scorer
-│   ├── optimize_staffing.py     # OR-Tools CP-SAT optimizer
+│   ├── matcher.py               # Combined match scorer (premade + merged custom pool)
+│   ├── optimize_staffing.py     # OR-Tools CP-SAT optimizer (premade + ad-hoc)
 │   ├── retrieve_context.py      # RAG retrieval layer
-│   ├── generate_explanation.py  # Ollama LLM explanation
+│   ├── generate_explanation.py  # Ollama/Groq LLM explanation
+│   ├── employee_store.py        # Custom (CE0xx) employee intake + merge
+│   ├── project_store.py         # Custom (C0xx) project intake + capacity check
+│   ├── resume_parser.py         # CV/resume text extraction + LLM structuring
 │   └── dashboard.py             # Streamlit dashboard
 ├── notebooks/                   # Week-by-week build notebooks (01–14)
 ├── data/processed/              # Generated artifacts (embeddings, scores, plans)
-├── tests/                       # pytest suite (31 tests)
+├── tests/                       # pytest suite (95 tests)
 ├── docs/project_summary.md      # Full project write-up
+├── CHANGELOG.md                 # v1.0-internship → v2.0 history
 └── requirements.txt
 ```
 
@@ -100,25 +106,26 @@ pytest tests/ -v
 
 | Metric | Value |
 |---|---|
-| Employees / Projects | 80 / 30 |
+| Employees / Projects | 80 / 30 (plus session-added custom employees/projects) |
 | Role-slots scored | 6,800 |
 | Optimizer status | OPTIMAL, zero double-bookings |
 | Average match score (demo run) | 0.810 |
 | Dominant SHAP feature | `semantic_score` (weight ≈ 0.70) |
-| Tests passing | 31 / 31 |
+| Tests passing | 95 / 95 |
 
 ## Caveats
 
 - Data is synthetic — this demonstrates the pipeline, not real hiring outcomes.
 - Embeddings use a general-purpose model, not one fine-tuned for technical hiring.
 - The optimizer assumes full-time assignment per role; partial allocations would need extended capacity constraints.
+- Custom employees/projects added through the dashboard live in `st.session_state` only — they don't persist across a page reload or a new session. Real persistence is a deliberately deferred decision (see `CHANGELOG.md`); every call site already reads through `employee_store.py`/`project_store.py`, so swapping the internals later shouldn't require touching callers.
 
 Full design rationale (why CP-SAT over greedy, why a local LLM, why two explainability layers) is in [`docs/project_summary.md`](docs/project_summary.md).
-
-
 
 ## Status
 
 Originally built as a 30-day internship deliverable (see `v1.0-internship`
-tag). Actively extended since — see [CHANGELOG.md](CHANGELOG.md) for
-what's been added post-internship.
+tag). Actively extended since — custom employee/project intake, resume
+parsing, and a merged matching pool were added in v2.0 — see
+[CHANGELOG.md](CHANGELOG.md) for the full history of what's changed
+post-internship.

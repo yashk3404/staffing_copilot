@@ -12,6 +12,7 @@ Staffing Copilot automates the matching and assignment process end to end:
 - It reads every employee's skills, experience, and availability, and every project's role requirements, and computes a **semantic match score** for each employee–role pair — not just keyword matching, but an understanding of what skills are actually related.
 - It then solves the **assignment problem across all projects simultaneously**, using a constraint solver rather than a greedy "give each role its top candidate" approach. That's what actually prevents double-booking: the system finds the one plan that maximizes overall fit while guaranteeing nobody is assigned twice.
 - For every assignment, it generates a **plain-English explanation** — grounded in the real facts of the match, not a hallucinated justification — so a manager can see *why* a person was chosen, not just a score.
+- It's not limited to a fixed roster: a manager can **add a new employee by uploading their CV** (parsed and structured by the same LLM pipeline, then reviewed by a human before it's committed) or **spin up an ad-hoc project on the spot**, and both are immediately real candidates for matching and solving — not static records bolted onto the side.
 - Everything is surfaced in an **interactive dashboard**, so staffing a project becomes a few clicks instead of a spreadsheet exercise.
 
 ## Why it's not just "another matching script"
@@ -20,7 +21,7 @@ Most matching tools stop at a ranked list. Staffing Copilot goes three steps fur
 
 ## Results (proof-of-concept run)
 
-On a synthetic dataset of 80 employees and 30 projects (6,800 scored role-slots), the system produced a conflict-free staffing plan with an average match score of 0.81 and zero double-bookings, backed by a 31-test suite covering the data, the scorer, and the optimizer.
+On a synthetic dataset of 80 employees and 30 projects (6,800 scored role-slots), the system produced a conflict-free staffing plan with an average match score of 0.81 and zero double-bookings, backed by a 95-test suite covering the data, the scorer, the optimizer, and the custom employee/project intake layer.
 
 ## Who this is for
 
