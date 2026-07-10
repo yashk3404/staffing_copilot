@@ -20,6 +20,8 @@ the mini-solver runs (item 11).
 import streamlit as st
 import pandas as pd
 
+from src.employee_store import load_all_employees
+
 CUSTOM_ID_PREFIX = "C"
 CUSTOM_ID_WIDTH = 3  # C001, C002, ... -- never collides with the
                      # real P0xx range from projects_with_index.csv
@@ -183,3 +185,58 @@ def get_busy_employee_ids(staffing_plan_df: pd.DataFrame) -> set:
         busy.update(assignments.values())
 
     return busy
+
+
+def get_capacity_summary(project: dict,
+                          employees_df: pd.DataFrame,
+                          staffing_plan_df: pd.DataFrame,
+                          min_avail: int = 60) -> dict:
+    """
+    Phase 3 item 12 -- the "X of 80 available" pre-check shown on the
+    Create Project form, before the user commits to running the
+    matcher/solver. Two things it deliberately does NOT do: it
+    doesn't call the sentence-transformer model (this needs to be
+    fast/cheap, unlike match_all_roles_adhoc()), and it doesn't check
+    min_experience per role -- it's a capacity signal ("is the pool
+    even large enough"), not a prediction of what the solver will
+    return. A role can show 3 available here and still fail to solve
+    if none of the 3 meet that role's specific min_experience --
+    that's expected, this is a cheaper, coarser check upstream of it.
+
+    project: dict with "required_roles" (";"-separated str) -- same
+             shape match_all_roles_adhoc() expects.
+    employees_df: the real roster, passed in by the caller (same
+                  convention as everywhere else in this file).
+
+    Returns:
+        {
+          "total_pool":      int,  # all employees, real + custom
+          "total_available": int,  # not busy AND meets min_avail
+          "by_role": {
+              role: {"in_role": int, "available": int}, ...
+          }
+        }
+    """
+    all_employees = load_all_employees(employees_df)
+    busy = get_busy_employee_ids(staffing_plan_df)
+
+    free_mask = (
+        (~all_employees.index.to_series().isin(busy)) &
+        (all_employees["availability_pct"] >= min_avail)
+    )
+
+    summary = {
+        "total_pool":      len(all_employees),
+        "total_available": int(free_mask.sum()),
+        "by_role":         {},
+    }
+
+    roles = [r.strip() for r in project["required_roles"].split(";")]
+    for role in roles:
+        in_role_mask = all_employees["role"] == role
+        summary["by_role"][role] = {
+            "in_role":   int(in_role_mask.sum()),
+            "available": int((in_role_mask & free_mask).sum()),
+        }
+
+    return summary

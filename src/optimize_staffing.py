@@ -193,6 +193,79 @@ def solve_ad_hoc_project(role_scores: dict,
           f"Total score: {solver.ObjectiveValue() / 10000:.2f}")
     return result_df
 
+# ── Ad-hoc project wiring (Phase 3 item 11) ─────────────────────────
+
+def staff_custom_project(project: dict,
+                          matcher,
+                          staffing_plan_df: pd.DataFrame,
+                          min_avail: int = 60,
+                          time_limit_sec: int = 10,
+                          verbose: bool = True) -> pd.DataFrame:
+    """
+    The full pipeline for one already-saved custom project (Phase 4's
+    "Create Project" form, after save_project() has assigned it an
+    id): exclude everyone already busy -> score every role's
+    candidates -> solve -> write the result back into storage.
+
+    project:          dict with a project_id already assigned (i.e.
+                       the return value of project_store.save_project(),
+                       looked back up) -- required, since
+                       update_project_assignments() needs it at the
+                       end and there's nowhere else to get it from.
+    matcher:           a loaded Matcher instance (matcher.load()
+                       already called) -- passed in rather than
+                       constructed here, since loading it (the
+                       sentence-transformer model + embeddings) is
+                       expensive and the dashboard should only do it
+                       once per session, not once per project.
+    staffing_plan_df:  the premade staffing_plan.csv, read by the
+                       caller -- same "only one place reads the real
+                       path" convention as project_store.py.
+
+    Imports project_store functions locally (not at module level) to
+    avoid a hard import-time dependency between optimize_staffing.py
+    (a plain script, importable outside Streamlit) and project_store.py
+    (which needs a live Streamlit runtime for st.session_state) --
+    this function is the only place in optimize_staffing.py that
+    actually needs Streamlit-backed state, so it's the only place
+    that pays for the import.
+
+    Returns the same DataFrame solve_ad_hoc_project() would (role,
+    employee_id, final_score) -- empty if any role had zero eligible
+    candidates or the solve was infeasible. On the empty-result path,
+    storage is deliberately left untouched (no partial/empty
+    assignments written) so a failed attempt doesn't silently
+    overwrite a project's previous good result.
+    """
+    from src.project_store import get_busy_employee_ids, update_project_assignments
+
+    busy = get_busy_employee_ids(staffing_plan_df)
+
+    role_scores = matcher.match_all_roles_adhoc(
+        project=project,
+        exclude_ids=busy,
+        min_avail=min_avail,
+        verbose=verbose,
+    )
+
+    result_df = solve_ad_hoc_project(role_scores, time_limit_sec=time_limit_sec)
+
+    if result_df.empty:
+        if verbose:
+            print(f"   Not staffed -- leaving project "
+                  f"{project.get('project_id')} without assignments.")
+        return result_df
+
+    assignments = dict(zip(result_df["role"], result_df["employee_id"]))
+    update_project_assignments(project["project_id"], assignments)
+
+    if verbose:
+        print(f"   Project {project['project_id']} staffed and saved: "
+              f"{assignments}")
+
+    return result_df
+
+
 # ── Main ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
