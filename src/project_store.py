@@ -2,10 +2,10 @@
 Project storage interface -- Phase 3 item 9 (C0xx ID scheme).
 
 Same pattern as employee_store.py: everything sits behind
-st.session_state for now. When Phase 5 picks real persistence, only
-the *internals* of these functions change -- every call site
-elsewhere (dashboard.py, matcher.match_adhoc(), get_busy_employee_ids())
-stays exactly the same.
+st.session_state for now. When Phase 5 picks real persistence (items
+19-20), only the *internals* of these functions change -- every call
+site elsewhere (dashboard.py, matcher.match_adhoc(),
+get_busy_employee_ids()) stays exactly the same.
 
 Schema mirrors data/processed/projects_with_index.csv:
     project_id, project_name, client, required_roles (";"-sep),

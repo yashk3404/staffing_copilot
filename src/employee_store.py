@@ -4,9 +4,9 @@ the storage layer Phase 3 builds on.
 
 Everything here talks to st.session_state right now. That's a
 deliberate placeholder, not the final answer -- when persistence is
-decided (Phase 5 item 16), only the *internals* of these functions
-change. Every call site elsewhere (dashboard.py, matcher.py via
-load_all_employees()) stays exactly the same.
+decided (Phase 5, items 19-20), only the *internals* of these
+functions change. Every call site elsewhere (dashboard.py, matcher.py
+via load_all_employees()) stays exactly the same.
 """
 
 import streamlit as st
