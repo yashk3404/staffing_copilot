@@ -107,3 +107,73 @@ def test_solve_two_projects():
         f"Expected 6 assignments for P001+P002, got {len(plan)}"
     assert plan.duplicated("employee_id").sum() == 0, \
         "Double-booking in 2-project solve"
+
+
+# ── Phase 5 / item 17 -- staff_custom_project() with a merged pool ──
+
+def test_staff_custom_project_can_assign_a_custom_employee():
+    """
+    End-to-end: a custom (CE0xx) employee, present only in a merged
+    employees_df, must be a real candidate for an ad-hoc project's
+    solve -- not just visible in storage.
+    """
+    import sys
+    from pathlib import Path as _Path
+    sys.path.append(str(_Path(__file__).parent.parent / "src"))
+    from matcher import Matcher
+    from optimize_staffing import staff_custom_project
+
+    m = Matcher()
+    m.load()
+
+    real = m.emp_df.set_index("employee_id")
+    custom_row = pd.DataFrame([{
+        "name": "Merged Pool Test Dev",
+        "role": "Backend Dev",
+        "experience_years": 6,
+        "availability_pct": 100,
+        "skills": "Python;Docker;PostgreSQL",
+        "cost_band": None,
+        "department": "Engineering",
+        "location": "Remote",
+    }], index=pd.Index(["CE999"], name="employee_id"))
+    merged = pd.concat([real, custom_row])
+
+    project = {
+        "project_id": "C_TEST_999",
+        "project_name": "Test ad-hoc",
+        "min_experience": 2,
+        "required_roles": "Backend Dev",
+        "required_skills": "Python;Docker",
+    }
+    empty_plan = pd.DataFrame(columns=["project_id", "role", "employee_id", "final_score"])
+
+    result = staff_custom_project(
+        project, m, empty_plan, employees_df=merged, verbose=False
+    )
+    assert not result.empty
+
+
+def test_staff_custom_project_without_employees_df_still_works():
+    """employees_df defaults to None -- must fall back to the
+    matcher's own premade-only pool, unaffected by item 17."""
+    import sys
+    from pathlib import Path as _Path
+    sys.path.append(str(_Path(__file__).parent.parent / "src"))
+    from matcher import Matcher
+    from optimize_staffing import staff_custom_project
+
+    m = Matcher()
+    m.load()
+
+    project = {
+        "project_id": "C_TEST_998",
+        "project_name": "Test ad-hoc no merge",
+        "min_experience": 1,
+        "required_roles": "Backend Dev",
+        "required_skills": "Python",
+    }
+    empty_plan = pd.DataFrame(columns=["project_id", "role", "employee_id", "final_score"])
+
+    result = staff_custom_project(project, m, empty_plan, verbose=False)
+    assert not result.empty

@@ -81,7 +81,7 @@ for the {ctx['role']} role on {project['name']}.
 If a runner-up is listed, explain in one sentence why they were not chosen."""
 
 
-def _call_ollama(prompt: str, model: str) -> str:
+def _call_ollama(prompt: str, model: str, max_tokens: int = 300) -> str:
     """Call the local Ollama server. Raises requests.exceptions.ConnectionError
     if Ollama isn't running, so the caller can fall back to Groq."""
     response = requests.post(
@@ -92,7 +92,7 @@ def _call_ollama(prompt: str, model: str) -> str:
             "stream": False,
             "options": {
                 "temperature": 0.3,
-                "num_predict": 300,
+                "num_predict": max_tokens,
             }
         },
         timeout=120
@@ -101,7 +101,8 @@ def _call_ollama(prompt: str, model: str) -> str:
     return response.json()["response"].strip()
 
 
-def _call_groq(prompt: str, model: str = GROQ_MODEL) -> str:
+def _call_groq(prompt: str, model: str = GROQ_MODEL,
+               max_tokens: int = 300) -> str:
     """
     Call Groq's free, OpenAI-compatible API as a fallback when Ollama
     isn't reachable (e.g. on Streamlit Cloud). Requires GROQ_API_KEY
@@ -118,7 +119,7 @@ def _call_groq(prompt: str, model: str = GROQ_MODEL) -> str:
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
-            "max_tokens": 300,
+            "max_tokens": max_tokens,
         },
         timeout=30,
     )
@@ -126,36 +127,60 @@ def _call_groq(prompt: str, model: str = GROQ_MODEL) -> str:
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
+def call_llm(prompt: str,
+             model: str = OLLAMA_MODEL,
+             max_tokens: int = 300) -> tuple[str, str]:
+    """
+    Shared Ollama→Groq fallback pipeline, reusable by anything that
+    needs an LLM call — not just staffing explanations. Used by
+    generate_explanation() below, and by the CV/resume parser
+    (Phase 2) for structured extraction.
+
+    Tries local Ollama first (used when developing locally). If
+    Ollama isn't reachable, falls back to the free Groq API (used
+    automatically when deployed, e.g. on Streamlit Cloud).
+
+    Returns a (text, backend) tuple, where backend is one of
+    "ollama", "groq", or "error" — callers decide how to use or
+    display the backend tag; this function itself never raises.
+    """
+    try:
+        return _call_ollama(prompt, model, max_tokens), "ollama"
+
+    except requests.exceptions.ConnectionError:
+        # Ollama not running — try the free Groq fallback instead
+        try:
+            return _call_groq(prompt, max_tokens=max_tokens), "groq"
+        except RuntimeError:
+            return (" Ollama is not running, and no GROQ_API_KEY is "
+                     "configured for the fallback. Start Ollama locally "
+                     "with 'ollama serve', or set GROQ_API_KEY to enable "
+                     "the cloud fallback."), "error"
+        except Exception as e:
+            return f" Error calling Groq fallback: {str(e)}", "error"
+
+    except Exception as e:
+        return f" Error calling Ollama: {str(e)}", "error"
+
+
 def generate_explanation(ctx: dict,
                           model: str = OLLAMA_MODEL) -> str:
     """
-    Try local Ollama first (used when developing locally).
-    If Ollama isn't reachable, fall back to the free Groq API
-    (used automatically when deployed, e.g. on Streamlit Cloud).
-    Returns an error string (never raises) so the dashboard stays stable.
+    Builds the staffing-explanation prompt and calls call_llm().
+    Returns an error string (never raises) so the dashboard stays
+    stable. Signature/behavior unchanged from before the refactor —
+    still returns a plain string, not a tuple, so every existing
+    caller (dashboard.py, __main__ below) keeps working as-is.
     """
     if "error" in ctx:
         return f" Cannot explain: {ctx['error']}"
 
     prompt = build_prompt(ctx)
+    text, backend = call_llm(prompt, model=model, max_tokens=300)
 
-    try:
-        return _call_ollama(prompt, model)
-
-    except requests.exceptions.ConnectionError:
-        # Ollama not running — try the free Groq fallback instead
-        try:
-            return _call_groq(prompt) + "\n\n*(via Groq — Ollama unavailable in this environment)*"
-        except RuntimeError:
-            return (" Ollama is not running, and no GROQ_API_KEY is "
-                    "configured for the fallback. Start Ollama locally "
-                    "with 'ollama serve', or set GROQ_API_KEY to enable "
-                    "the cloud fallback.")
-        except Exception as e:
-            return f" Error calling Groq fallback: {str(e)}"
-
-    except Exception as e:
-        return f" Error calling Ollama: {str(e)}"
+    if backend == "groq":
+        return text + "\n\n*(via Groq — Ollama unavailable in this environment)*"
+    return text
 
 
 # ── Main ──────────────────────────────────────────────────────────
