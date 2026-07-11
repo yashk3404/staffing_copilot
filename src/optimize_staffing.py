@@ -246,7 +246,11 @@ def staff_custom_project(project: dict,
     assignments written) so a failed attempt doesn't silently
     overwrite a project's previous good result.
     """
-    from src.project_store import get_busy_employee_ids, update_project_assignments
+    from src.project_store import (
+        get_busy_employee_ids,
+        update_project_assignments,
+        save_candidate_pool,
+    )
 
     busy = get_busy_employee_ids(staffing_plan_df)
 
@@ -257,6 +261,13 @@ def staff_custom_project(project: dict,
         verbose=verbose,
         employees_df=employees_df,
     )
+
+    # Item 21 -- persist the full candidate pool (not just the final
+    # assignment) so runner-up data and LLM explanations survive past
+    # this call. Saved even on a later infeasible/empty solve -- some
+    # roles here may still have real scored candidates worth keeping
+    # for an explanation of what went wrong.
+    save_candidate_pool(project["project_id"], role_scores)
 
     result_df = solve_ad_hoc_project(role_scores, time_limit_sec=time_limit_sec)
 

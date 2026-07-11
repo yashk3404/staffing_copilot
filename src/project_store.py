@@ -32,6 +32,8 @@ def _ensure_session_store():
         st.session_state.custom_projects = {}      # {project_id: dict}
     if "custom_project_counter" not in st.session_state:
         st.session_state.custom_project_counter = 0
+    if "custom_candidate_pools" not in st.session_state:
+        st.session_state.custom_candidate_pools = {}  # {project_id: {role: DataFrame}}
 
 
 def _next_custom_project_id() -> str:
@@ -87,6 +89,39 @@ def update_project_assignments(project_id: str, assignments: dict) -> None:
     _ensure_session_store()
     if project_id in st.session_state.custom_projects:
         st.session_state.custom_projects[project_id]["assignments"] = assignments
+
+
+def save_candidate_pool(project_id: str, role_scores: dict) -> None:
+    """
+    Persists the full per-role candidate pool (role -> DataFrame,
+    same shape match_all_roles_adhoc() returns) alongside a custom
+    project's final assignment -- the ad-hoc equivalent of what
+    score_matrix.csv already gives premade projects.
+
+    Without this, staff_custom_project() computes the full ranked
+    list (including the runner-up) during the solve, then throws it
+    away -- only the winning assignment survives. This is what lets
+    item 22's retrieve_adhoc() reconstruct runner-up comparisons and
+    LLM explanations after the fact, instead of only at solve time.
+
+    Called even on a partial/infeasible solve (some roles may still
+    have scored candidates even if the overall solve failed) --
+    storing whatever came back lets a later "why did this fail"
+    explanation still have data to work with.
+    """
+    _ensure_session_store()
+    st.session_state.custom_candidate_pools[project_id] = role_scores
+
+
+def get_candidate_pool(project_id: str) -> dict | None:
+    """
+    Read side of save_candidate_pool(). Returns None if this project
+    was never solved, or was solved in a session predating this item
+    -- callers (dashboard.py) need to handle that gracefully rather
+    than assume every custom project has one.
+    """
+    _ensure_session_store()
+    return st.session_state.custom_candidate_pools.get(project_id)
 
 
 def get_project_by_id(project_id: str,
