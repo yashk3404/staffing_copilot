@@ -20,19 +20,67 @@ class StaffingOptimizer:
         self.x = {}
         self.solver = cp_model.CpSolver()
         self.df = None
+        self.unstaffable_by_exclusion = []  # populated by build()
 
     # ── Build ─────────────────────────────────────────────────────
 
-    def build(self, projects_to_staff: list = None):
+    def build(self, projects_to_staff: list = None, exclude_ids: set = None):
         """
         Build decision variables and constraints.
         projects_to_staff: list of project_ids to include, or None for all.
+        exclude_ids: item 24 -- employee_ids to drop from the candidate
+                     pool entirely before building anything, e.g.
+                     everyone already assigned in an earlier Simulate-
+                     mode batch (see dashboard.py's sim_busy_ids). Kept
+                     as a plain set-membership filter on self.df, same
+                     shape as match_adhoc()'s exclude_ids over in
+                     matcher.py, rather than a new constraint on top of
+                     the model -- excluding a row here means it never
+                     gets a decision variable at all, so it can't be
+                     assigned no matter what the objective would
+                     prefer. Everything downstream (decision variables,
+                     both constraints, the objective) already just
+                     iterates self.df, so nothing else in this class
+                     needs to change for this to work.
         """
         df = self.scores[self.scores["eligible"] == True].copy()
         if projects_to_staff is not None:
             df = df[df["project_id"].isin(projects_to_staff)]
 
+        # Slots that had at least one eligible candidate BEFORE
+        # exclude_ids is applied -- these are the role-slots this
+        # build is actually on the hook to staff. Captured before the
+        # exclude_ids filter below so a slot that gets wiped out
+        # entirely by exclusion is still remembered here.
+        slots_before_exclusion = set(
+            df[["project_id", "role"]].drop_duplicates().itertuples(index=False, name=None)
+        )
+
+        if exclude_ids:
+            df = df[~df["employee_id"].isin(exclude_ids)]
+
         self.df = df.reset_index(drop=True)
+
+        # Any slot that existed pre-exclusion but has zero rows left
+        # post-exclusion would otherwise just be absent from every
+        # groupby below -- no decision variables, no "== 1" constraint,
+        # nothing stopping the solver from returning OPTIMAL having
+        # silently never staffed it. That's worse than a crash: a
+        # caller checking `result.empty` sees False and has no signal
+        # anything went wrong. Force the whole model INFEASIBLE
+        # instead via a direct contradiction, one per wiped-out slot,
+        # so solve() reports it the same honest way a genuinely
+        # unsolvable model does.
+        slots_after_exclusion = set(
+            self.df[["project_id", "role"]].drop_duplicates().itertuples(index=False, name=None)
+        )
+        self.unstaffable_by_exclusion = sorted(
+            slots_before_exclusion - slots_after_exclusion
+        )
+        for pid, role in self.unstaffable_by_exclusion:
+            marker = self.model.NewBoolVar(f"unstaffable_{pid}_{role}")
+            self.model.Add(marker == 1)
+            self.model.Add(marker == 0)
 
         # Decision variables: one bool per eligible (project, role, employee)
         for _, row in self.df.iterrows():
@@ -73,7 +121,22 @@ class StaffingOptimizer:
 
         if status == cp_model.INFEASIBLE:
             print("   Model is INFEASIBLE — constraints cannot all be satisfied.")
-            print("  Try: relaxing constraints, or reducing project count.")
+            if self.unstaffable_by_exclusion:
+                # Item 24 -- distinguish "genuinely no eligible pool
+                # left, plus overlapping-role contention" from
+                # ambiguous INFEASIBLE. self.unstaffable_by_exclusion
+                # (set in build()) already pinpoints exactly which
+                # (project, role) slots exclude_ids wiped out --
+                # surface that here instead of a generic "try
+                # relaxing constraints" message that doesn't tell the
+                # caller anything actionable when the real cause is
+                # known precisely.
+                slots = ", ".join(f"{pid}/{role}"
+                                   for pid, role in self.unstaffable_by_exclusion)
+                print(f"   Specifically unstaffable due to exclude_ids "
+                      f"(zero eligible candidates left): {slots}")
+            else:
+                print("  Try: relaxing constraints, or reducing project count.")
             return pd.DataFrame()
 
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -94,7 +157,23 @@ class StaffingOptimizer:
                     "final_score": row["final_score"],
                 })
 
-        result_df = pd.DataFrame(results).sort_values(["project_id", "role"])
+        # Item 24 follow-up -- results can legitimately be empty even
+        # on a non-INFEASIBLE status: an empty projects_to_staff list,
+        # or every requested project/role already fully excluded
+        # (self.x has zero entries -- an edge case build() itself
+        # can't always turn into INFEASIBLE, since "zero variables"
+        # isn't the same situation as "a slot existed but got wiped
+        # out," which is what the unstaffable_by_exclusion markers
+        # cover). pd.DataFrame([]).sort_values(["project_id", "role"])
+        # raises KeyError (no columns to sort by on an empty frame
+        # built from an empty list) -- build the empty frame with the
+        # right columns explicitly instead of letting that crash.
+        if results:
+            result_df = pd.DataFrame(results).sort_values(["project_id", "role"])
+        else:
+            result_df = pd.DataFrame(
+                columns=["project_id", "role", "employee_id", "final_score"]
+            )
         print(f"   Assigned {len(result_df)} role-slots | "
               f"Total score: {self.solver.ObjectiveValue() / 10000:.2f}")
         return result_df
