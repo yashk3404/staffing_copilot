@@ -38,6 +38,7 @@ from src.project_store import (
     get_project_by_id,
     get_capacity_summary,
     load_all_projects,
+    get_candidate_pool,
 )
 from src.optimize_staffing import staff_custom_project
 from src.employee_store import save_employee, list_custom_employees, load_all_employees
@@ -825,13 +826,21 @@ if mode == "Browse Projects":
 
     st.subheader("Role Details & Explanations")
 
-    if is_custom_project and not project_plan.empty:
+    # Item 23 -- fetched once per project render, not per role: every
+    # role in the loop below reads from the same pool.
+    # get_candidate_pool() returns None for a custom project that was
+    # never solved, or was solved in a session predating item 21 --
+    # both real cases, not bugs, so this is handled per-role below
+    # rather than assumed away here.
+    candidate_pool = get_candidate_pool(selected_project) \
+        if is_custom_project else None
+
+    if is_custom_project and not project_plan.empty and candidate_pool is None:
         st.caption(
-            "LLM explanations and runner-up comparisons below aren't "
-            "available for custom-created projects -- that context is "
-            "generated offline (RAG index + SHAP values) against the "
-            "premade project set only. Stats and skills are still "
-            "shown from the live employee roster."
+            "This project was staffed in a session before live "
+            "explanations were added (or its candidate pool wasn't "
+            "saved) -- re-run the solve from **Create Project** mode "
+            "to enable explanations and runner-up comparisons below."
         )
 
     for _, row in project_plan.iterrows():
@@ -858,13 +867,9 @@ if mode == "Browse Projects":
             if emp.get("skills"):
                 st.markdown(f"**Skills:** {emp.get('skills')}")
 
-            if is_custom_project:
-                # No RAG context or runner-up data exists for custom
-                # projects -- retriever.retrieve() is built against
-                # the premade project set only (see caption above).
-                # Skip straight past the explanation/runner-up
-                # sections rather than call it and surface a
-                # confusing empty/wrong result.
+            if is_custom_project and candidate_pool is None:
+                # Caption above already explains why -- nothing more
+                # to show for this role specifically.
                 continue
 
             st.markdown("---")
@@ -879,9 +884,16 @@ if mode == "Browse Projects":
             if st.button("Generate Explanation",
                          key=f"btn_{selected_project}_{role}"):
                 with st.spinner("Generating explanation with Ollama..."):
-                    ctx = retriever.retrieve(selected_project, role)
-                    st.session_state[session_key] = \
-                        generate_explanation(ctx)
+                    ctx = retriever.retrieve_adhoc(
+                        selected_project, role, custom_record, candidate_pool
+                    ) if is_custom_project else \
+                        retriever.retrieve(selected_project, role)
+                    if ctx.get("error"):
+                        st.session_state[session_key] = None
+                        st.error(ctx["error"])
+                    else:
+                        st.session_state[session_key] = \
+                            generate_explanation(ctx)
 
             if st.session_state[session_key]:
                 st.info(st.session_state[session_key])
@@ -891,8 +903,16 @@ if mode == "Browse Projects":
             # ── Why not X? ────────────────────────────────────────
             st.markdown("#### 🔍 Why not the runner-up?")
 
-            ctx = retriever.retrieve(selected_project, role)
-            ru  = ctx.get("runner_up")
+            ctx = retriever.retrieve_adhoc(
+                selected_project, role, custom_record, candidate_pool
+            ) if is_custom_project else \
+                retriever.retrieve(selected_project, role)
+
+            if ctx.get("error"):
+                st.caption(ctx["error"])
+                continue
+
+            ru = ctx.get("runner_up")
 
             if ru:
                 col_a, col_b = st.columns(2)
@@ -900,7 +920,7 @@ if mode == "Browse Projects":
                 with col_a:
                     st.markdown(
                         f"**✅ Chosen: {emp.get('name', emp_id)}**")
-                    st.markdown(f"- Score: `{row['final_score']:.4f}`")
+                    st.markdown(f"- Score: `{ctx['assigned']['score']:.4f}`")
                     st.markdown(
                         f"- Experience: "
                         f"{emp.get('experience_years', '?')} yrs")
@@ -926,9 +946,10 @@ if mode == "Browse Projects":
                     st.warning(
                         f"⚠️ {ru['name']} scored higher for this "
                         f"specific role ({ru['score']:.4f} vs "
-                        f"{row['final_score']:.4f}) but was assigned "
-                        f"elsewhere by the optimizer to maximize the "
-                        f"overall team score across all projects."
+                        f"{ctx['assigned']['score']:.4f}) but was "
+                        f"assigned elsewhere by the optimizer to "
+                        f"maximize the overall team score across all "
+                        f"projects."
                     )
                 else:
                     st.success(
@@ -999,8 +1020,7 @@ if mode == "Browse Projects":
     st.subheader("📊 Feature Importance (SHAP)")
     st.caption(
         "Which factors drive match scores across all candidates. "
-        "Run notebooks/13_shap.ipynb to generate these plots. This "
-        "panel is global (not project-specific), so it's the same "
+        "This panel is global (not project-specific), so it's the same "
         "regardless of which project -- premade or custom -- is "
         "selected above."
     )
