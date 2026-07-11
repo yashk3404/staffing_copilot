@@ -16,6 +16,53 @@ import json
 from pathlib import Path
 
 
+def build_project_summary(project: dict) -> str:
+    """
+    Item 22 -- same descriptive-sentence shape build_score_matrix's
+    offline pipeline bakes into project_profiles.json for premade
+    projects ("Looking for <roles>. Required skills: <skills>.
+    Minimum <N> years experience. Deadline in <N> days. <priority>
+    priority <budget> budget project."), built on the fly here
+    instead -- a custom (C0xx) project created mid-session has no
+    project_profiles.json entry, that file is generated offline and
+    predates Phase 6 entirely.
+
+    Mirrors matcher._build_profile_text() in spirit: read whatever
+    fields are actually on the record, skip anything missing rather
+    than print "None" or crash, since save_project() doesn't enforce
+    every field being present.
+    """
+    roles = [r.strip() for r in str(project.get("required_roles", "") or "")
+             .split(";") if r.strip()]
+    skills = [s.strip() for s in str(project.get("required_skills", "") or "")
+              .split(";") if s.strip()]
+
+    parts = []
+    if roles:
+        parts.append(f"Looking for {' and '.join(roles)}.")
+    if skills:
+        parts.append(f"Required skills: {', '.join(skills)}.")
+
+    min_exp = project.get("min_experience")
+    if min_exp not in (None, ""):
+        parts.append(f"Minimum {min_exp} years experience.")
+
+    deadline = project.get("deadline_days")
+    if deadline not in (None, ""):
+        parts.append(f"Deadline in {deadline} days.")
+
+    priority = project.get("priority")
+    budget   = project.get("budget_band")
+    if priority or budget:
+        parts.append(
+            f"{priority or 'Unspecified'} priority "
+            f"{budget or 'unspecified'} budget project."
+        )
+
+    return " ".join(parts) if parts else \
+        f"{project.get('project_name', 'Custom project')} -- no further details provided."
+
+
 class ContextRetriever:
 
     def __init__(self, data_dir: str):
@@ -144,6 +191,144 @@ class ContextRetriever:
             "runner_up":  runner_up,
             "n_eligible": n_eligible,
         }
+
+    def retrieve_adhoc(self, project_id: str, role: str,
+                        project: dict, candidate_pool: dict) -> dict:
+        """
+        Item 22 -- ad-hoc equivalent of retrieve(), for custom (C0xx)
+        projects. These never get a score_matrix.csv row, a
+        staffing_plan.csv row, or a project_profiles.json /
+        employee_profiles.json entry -- all four are generated
+        offline against the premade 30-project set only, before this
+        project ever existed. Everything retrieve() reads from those
+        files, this rebuilds from what's already in memory instead:
+
+        project:        the custom project record from
+                         project_store.get_project_by_id() -- needs
+                         "assignments" (role -> employee_id) already
+                         filled in by update_project_assignments().
+        candidate_pool: {role: DataFrame} from
+                         project_store.get_candidate_pool(project_id)
+                         -- the pool item 21 started saving, same
+                         shape match_all_roles_adhoc() returns
+                         (employee_id, name, role, experience_years,
+                         availability_pct, skills, final_score,
+                         eligible, ...). Every field retrieve() would
+                         otherwise look up in self.employees is
+                         already sitting in this DataFrame, since
+                         match_adhoc() reads it straight off
+                         employees_df at solve time.
+
+        Returns the exact same shape retrieve() does (project_id,
+        role, project, assigned, runner_up, n_eligible) so
+        generate_explanation.build_prompt() and dashboard.py's
+        runner-up panel work against either one unmodified. Returns
+        {"error": ...} instead if the pool is missing (project never
+        solved, or solved in a session predating item 21) or the
+        role/assignment isn't in it -- callers should show that
+        message rather than assume every custom project has this.
+        """
+        if not candidate_pool:
+            return {"error": f"No candidate pool saved for {project_id} "
+                              f"-- was it solved after item 21 landed?"}
+
+        assigned_emp_id = project.get("assignments", {}).get(role)
+        if not assigned_emp_id:
+            return {"error": f"No assignment found for {project_id} / {role}"}
+
+        role_df = candidate_pool.get(role)
+        if role_df is None or role_df.empty:
+            return {"error": f"No saved candidates for role {role} "
+                              f"on {project_id}"}
+
+        assigned_rows = role_df[role_df.employee_id == assigned_emp_id]
+        if assigned_rows.empty:
+            return {"error": f"Assigned employee {assigned_emp_id} not "
+                              f"found in saved candidate pool for "
+                              f"{project_id} / {role}"}
+
+        assigned_row   = assigned_rows.iloc[0]
+        assigned_score = float(assigned_row["final_score"])
+
+        assigned_info = {
+            "employee_id":      assigned_emp_id,
+            "name":             assigned_row.get("name",             assigned_emp_id),
+            "actual_role":      assigned_row.get("role",             ""),
+            "experience_years": assigned_row.get("experience_years", ""),
+            "availability_pct": assigned_row.get("availability_pct", ""),
+            "skills":           assigned_row.get("skills",           ""),
+            "score":            round(assigned_score, 4),
+            "profile":          self._build_employee_profile_text(assigned_row),
+        }
+
+        project_info = {
+            "project_id": project_id,
+            "name":       project.get("project_name", project_id),
+            "client":     project.get("client",        ""),
+            "deadline":   project.get("deadline_days", ""),
+            "skills":     project.get("required_skills", ""),
+            "summary":    build_project_summary(project),
+        }
+
+        # Runner-up: best eligible candidate who wasn't assigned.
+        # candidate_pool DataFrames come straight out of
+        # match_all_roles_adhoc(), already sorted by final_score
+        # descending -- re-sort anyway rather than trust that
+        # ordering survived a session_state round-trip.
+        eligible = role_df[role_df["eligible"] == True]  # noqa: E712
+        runner_up_rows = (
+            eligible[eligible.employee_id != assigned_emp_id]
+            .sort_values("final_score", ascending=False)
+        )
+
+        runner_up = None
+        if not runner_up_rows.empty:
+            ru_row   = runner_up_rows.iloc[0]
+            ru_score = float(ru_row["final_score"])
+            runner_up = {
+                "employee_id":      ru_row["employee_id"],
+                "name":             ru_row.get("name",             ru_row["employee_id"]),
+                "actual_role":      ru_row.get("role",             ""),
+                "experience_years": ru_row.get("experience_years", ""),
+                "availability_pct": ru_row.get("availability_pct", ""),
+                "skills":           ru_row.get("skills",           ""),
+                "score":            round(ru_score, 4),
+                "score_gap":        round(ru_score - assigned_score, 4),
+            }
+
+        return {
+            "project_id": project_id,
+            "role":       role,
+            "project":    project_info,
+            "assigned":   assigned_info,
+            "runner_up":  runner_up,
+            "n_eligible": int(len(eligible)),
+        }
+
+    @staticmethod
+    def _build_employee_profile_text(row: pd.Series) -> str:
+        """
+        Same descriptive-sentence shape as
+        matcher.Matcher._build_profile_text() (and the offline
+        embed_employees.py pipeline that produced
+        employee_profiles.json) -- built here on the fly for
+        candidate_pool rows, since neither a real employee scored via
+        match_adhoc() nor a custom (CE0xx) one has an
+        employee_profiles.json entry to read a pre-baked profile
+        string from. Deliberately no Beginner/Intermediate/Expert
+        grouping, matching matcher's own note that the flat skill
+        list this app collects has no per-skill level to group by.
+        """
+        skills = [s.strip() for s in str(row.get("skills", "") or "")
+                  .split(";") if s.strip()]
+        parts = [
+            f"{row.get('role', '')} with "
+            f"{row.get('experience_years', 0)} years of experience."
+        ]
+        if skills:
+            parts.append(f"Skilled in {', '.join(skills)}.")
+        parts.append(f"Available at {row.get('availability_pct', 0)}% capacity.")
+        return " ".join(parts)
 
     def retrieve_all(self) -> list:
         """Retrieve context for every assignment in the staffing plan."""
