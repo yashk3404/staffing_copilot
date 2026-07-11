@@ -851,6 +851,26 @@ if mode == "Browse Projects":
         score  = row["final_score"]
         score_label = f"{score:.4f}" if pd.notna(score) else "—"
 
+        # Item 23 follow-up -- fetch ctx once per role, up front, and
+        # reuse it for the Match Score metric AND the explanation/
+        # runner-up sections below (was being fetched twice further
+        # down before, and never at all before the stats render).
+        # row["final_score"] is always None for custom projects (they
+        # have no staffing_plan.csv row), so score_label above stays
+        # stuck at "—" for them unless it's overwritten here from
+        # ctx["assigned"]["score"], which is the actual solved score
+        # sitting in the candidate pool.
+        ctx = None
+        if is_custom_project:
+            if candidate_pool is not None:
+                ctx = retriever.retrieve_adhoc(
+                    selected_project, role, custom_record, candidate_pool
+                )
+                if not ctx.get("error"):
+                    score_label = f"{ctx['assigned']['score']:.4f}"
+        else:
+            ctx = retriever.retrieve(selected_project, role)
+
         with st.expander(
             f"**{role}** → {emp.get('name', emp_id)}  "
             f"(score: {score_label})"
@@ -884,10 +904,6 @@ if mode == "Browse Projects":
             if st.button("Generate Explanation",
                          key=f"btn_{selected_project}_{role}"):
                 with st.spinner("Generating explanation with Ollama..."):
-                    ctx = retriever.retrieve_adhoc(
-                        selected_project, role, custom_record, candidate_pool
-                    ) if is_custom_project else \
-                        retriever.retrieve(selected_project, role)
                     if ctx.get("error"):
                         st.session_state[session_key] = None
                         st.error(ctx["error"])
@@ -902,11 +918,6 @@ if mode == "Browse Projects":
 
             # ── Why not X? ────────────────────────────────────────
             st.markdown("#### 🔍 Why not the runner-up?")
-
-            ctx = retriever.retrieve_adhoc(
-                selected_project, role, custom_record, candidate_pool
-            ) if is_custom_project else \
-                retriever.retrieve(selected_project, role)
 
             if ctx.get("error"):
                 st.caption(ctx["error"])
@@ -1020,7 +1031,8 @@ if mode == "Browse Projects":
     st.subheader("📊 Feature Importance (SHAP)")
     st.caption(
         "Which factors drive match scores across all candidates. "
-        "This panel is global (not project-specific), so it's the same "
+        "Run notebooks/13_shap.ipynb to generate these plots. This "
+        "panel is global (not project-specific), so it's the same "
         "regardless of which project -- premade or custom -- is "
         "selected above."
     )
