@@ -277,3 +277,63 @@ class TestExcludeIds:
         )
         assert synthetic_optimizer.unstaffable_by_exclusion == [("PX", "Frontend Dev")]
         assert "E4" in set(synthetic_optimizer.df.employee_id)
+
+
+# ── solve_ad_hoc_project() empty-result shape ────────────────────────
+#
+# Found during a post-Item-26 review: solve_ad_hoc_project() (the
+# function staff_custom_project() actually calls for every custom
+# project) had the exact bug Item 26 fixed on StaffingOptimizer.solve()
+# -- a bare columnless pd.DataFrame() on both its empty-return paths --
+# just missed because it's a separate function. Never crashed since
+# every caller checks .empty first, but had zero direct test coverage.
+# These tests build role_scores by hand, so no sentence_transformers
+# dependency needed.
+
+from optimize_staffing import solve_ad_hoc_project  # noqa: E402
+
+
+class TestSolveAdHocProjectEmptyResult:
+
+    def test_zero_eligible_candidates_returns_columned_empty_df(self):
+        """A role with zero eligible candidates must return an empty
+        df with the documented columns, not a bare pd.DataFrame()."""
+        role_scores = {
+            "Backend Dev": pd.DataFrame([
+                {"employee_id": "E1", "final_score": 0.9, "eligible": False},
+            ]),
+        }
+        result = solve_ad_hoc_project(role_scores)
+        assert result.empty
+        assert list(result.columns) == ["role", "employee_id", "final_score"]
+
+    def test_infeasible_solve_returns_columned_empty_df(self):
+        """Two roles, one shared candidate, both roles require someone
+        -- infeasible (can't fill both with only one eligible person
+        overlapping every role). Must return the documented empty
+        shape, not a bare pd.DataFrame()."""
+        role_scores = {
+            "Backend Dev": pd.DataFrame([
+                {"employee_id": "E1", "final_score": 0.9, "eligible": True},
+            ]),
+            "Frontend Dev": pd.DataFrame([
+                {"employee_id": "E1", "final_score": 0.8, "eligible": True},
+            ]),
+        }
+        result = solve_ad_hoc_project(role_scores)
+        assert result.empty
+        assert list(result.columns) == ["role", "employee_id", "final_score"]
+
+    def test_normal_solve_still_returns_expected_columns(self):
+        """Sanity check: the non-empty path's columns match the
+        documented empty-path columns exactly, so callers see one
+        consistent shape either way."""
+        role_scores = {
+            "Backend Dev": pd.DataFrame([
+                {"employee_id": "E1", "final_score": 0.9, "eligible": True},
+            ]),
+        }
+        result = solve_ad_hoc_project(role_scores)
+        assert not result.empty
+        assert list(result.columns) == ["role", "employee_id", "final_score"]
+        assert result.iloc[0]["employee_id"] == "E1"

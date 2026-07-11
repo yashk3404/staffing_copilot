@@ -206,6 +206,19 @@ class StaffingOptimizer:
         return merged[merged.n_eligible == 0]
 
 
+def _empty_adhoc_result() -> pd.DataFrame:
+    """
+    Shared empty-result shape for solve_ad_hoc_project() -- same fix
+    as StaffingOptimizer._empty_result() (item 26), applied here too.
+    That helper isn't reused directly because its columns include
+    project_id, which this function's caller-facing shape doesn't
+    have (a single ad-hoc solve is always for one project, never
+    stamped with a project_id column) -- role/employee_id/final_score
+    only, matching what a non-empty result already returns below.
+    """
+    return pd.DataFrame(columns=["role", "employee_id", "final_score"])
+
+
 def solve_ad_hoc_project(role_scores: dict,
                           time_limit_sec: int = 10) -> pd.DataFrame:
     """
@@ -224,8 +237,15 @@ def solve_ad_hoc_project(role_scores: dict,
     most once within this project.
 
     Returns a DataFrame: role, employee_id, final_score.
-    Empty DataFrame if any role has zero eligible candidates, or if
-    the solve is otherwise infeasible.
+    Empty DataFrame (same three columns, zero rows -- see
+    _empty_adhoc_result()) if any role has zero eligible candidates,
+    or if the solve is otherwise infeasible. A bare columnless
+    pd.DataFrame() used to be returned on both these paths -- harmless
+    today since every caller checks .empty before touching columns,
+    but the same fragility Item 26 fixed on StaffingOptimizer.solve(),
+    just missed here since this is a different function. Fixed for
+    the same reason: an empty-but-columnless frame is the kind of
+    thing that fails silently once results get persisted (v3).
     """
     model = cp_model.CpModel()
     x = {}
@@ -236,7 +256,7 @@ def solve_ad_hoc_project(role_scores: dict,
         if eligible.empty:
             print(f"   No eligible candidates for role '{role}' — "
                   f"can't staff this project as specified.")
-            return pd.DataFrame()
+            return _empty_adhoc_result()
         for _, r in eligible.iterrows():
             key = (role, r["employee_id"])
             x[key] = model.NewBoolVar(f"x_{role}_{r['employee_id']}")
@@ -266,7 +286,7 @@ def solve_ad_hoc_project(role_scores: dict,
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         print(f"   Ad-hoc solve failed: {solver.StatusName(status)}")
-        return pd.DataFrame()
+        return _empty_adhoc_result()
 
     assigned = []
     for (role, eid, score) in rows:
@@ -281,6 +301,7 @@ def solve_ad_hoc_project(role_scores: dict,
     print(f"   Ad-hoc solve OK — {len(result_df)} role(s) assigned | "
           f"Total score: {solver.ObjectiveValue() / 10000:.2f}")
     return result_df
+
 
 # ── Ad-hoc project wiring (Phase 3 item 11) ─────────────────────────
 
