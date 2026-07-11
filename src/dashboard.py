@@ -1031,8 +1031,7 @@ if mode == "Browse Projects":
     st.subheader("📊 Feature Importance (SHAP)")
     st.caption(
         "Which factors drive match scores across all candidates. "
-        "Run notebooks/13_shap.ipynb to generate these plots. This "
-        "panel is global (not project-specific), so it's the same "
+        "This panel is global (not project-specific), so it's the same "
         "regardless of which project -- premade or custom -- is "
         "selected above."
     )
