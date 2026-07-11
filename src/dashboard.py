@@ -40,7 +40,7 @@ from src.project_store import (
     load_all_projects,
     get_candidate_pool,
 )
-from src.optimize_staffing import staff_custom_project
+from src.optimize_staffing import staff_custom_project, StaffingOptimizer
 from src.employee_store import save_employee, list_custom_employees, load_all_employees
 from src.resume_parser import (
     parse_resume,
@@ -237,7 +237,7 @@ if "_pending_mode" in st.session_state:
 
 mode = st.sidebar.radio(
     "Mode",
-    ["Browse Projects", "Create Project", "Add Employee"],
+    ["Browse Projects", "Create Project", "Add Employee", "Simulate"],
     key="app_mode",
 )
 
@@ -703,6 +703,197 @@ if mode == "Add Employee":
                 st.session_state.pop("employee_dup_matches", None)
                 st.session_state.pop("employee_draft", None)
                 st.rerun()
+
+# ── Mode: Simulate ────────────────────────────────────────────────
+#
+# Item 25 -- lets you stage the 6 curated, deliberately-contentious
+# premade projects (P002/P003/P008/P017/P019/P024 -- all "critical"
+# priority, all wanting Backend Dev/Android Dev/Data Engineer against
+# an overlapping Python-or-Swift/Android-or-iOS/SQL/AWS skill pool, so
+# they genuinely compete for the same people) into one or more solve
+# batches instead of all-at-once, to make the cost of staggered/
+# reactive staffing visible against the jointly-optimal baseline.
+#
+# Deliberately scoped to the premade pool only (StaffingOptimizer
+# reads score_matrix.csv directly, same as the rest of Phase 1-3) --
+# custom (C0xx) projects and CE0xx employees are Phase 4/6a's
+# adhoc-matching path, a different mechanism (live re-scoring vs a
+# precomputed matrix); mixing the two here is future scope, not part
+# of this item.
+
+if mode == "Simulate":
+
+    CURATED_PROJECT_IDS = ["P002", "P003", "P008", "P017", "P019", "P024"]
+
+    st.title("🧪 Simulate — Staggered vs Joint-Optimal Staffing")
+    st.caption(
+        "These 6 premade projects all want Backend Dev / Android Dev / "
+        "Data Engineer against an overlapping skill pool -- they "
+        "genuinely compete for the same people. Stage them into one or "
+        "more batches below and see how the total match score compares "
+        "to solving them all at once."
+    )
+
+    # ── Session state (item 25 spec) ────────────────────────────────
+    if "sim_busy_ids" not in st.session_state:
+        st.session_state.sim_busy_ids = set()
+    if "sim_results" not in st.session_state:
+        st.session_state.sim_results = []
+    if "sim_staffed_project_ids" not in st.session_state:
+        st.session_state.sim_staffed_project_ids = set()
+    if "sim_batch_number" not in st.session_state:
+        st.session_state.sim_batch_number = 0
+
+    def new_optimizer():
+        # Fresh CP-SAT model per call is required -- a solved model
+        # can't be rebuilt/re-solved -- so this is a plain factory,
+        # not cached; instantiating it is just two pd.read_csv() calls
+        # on small local files, cheap enough per click.
+        return StaffingOptimizer(
+            score_matrix_path=str(BASE / "score_matrix.csv"),
+            employees_path=str(BASE / "employees_with_index.csv"),
+        )
+
+    remaining_ids = [pid for pid in CURATED_PROJECT_IDS
+                      if pid not in st.session_state.sim_staffed_project_ids]
+
+    # ── Benchmark: computed once, lazily, cached ────────────────────
+    # "Lazily" here means once-ever-then-cached, not recomputed on
+    # every rerun -- not gated behind an extra manual click, since the
+    # running-total comparison is only useful once this exists anyway.
+    if "sim_benchmark_total" not in st.session_state:
+        with st.spinner("Computing joint-optimal benchmark "
+                         "(solving all 6 together)..."):
+            bench_opt = new_optimizer()
+            bench_opt.build(projects_to_staff=CURATED_PROJECT_IDS,
+                             exclude_ids=None)
+            bench_result = bench_opt.solve(time_limit_sec=30)
+            st.session_state.sim_benchmark_total = \
+                float(bench_result["final_score"].sum()) \
+                if not bench_result.empty else 0.0
+
+    running_total = sum(r["final_score"] for r in st.session_state.sim_results)
+    b1, b2 = st.columns(2)
+    b1.metric("Your total", f"{running_total:.4f}")
+    b2.metric("Jointly optimal", f"{st.session_state.sim_benchmark_total:.4f}")
+    if st.session_state.sim_results and \
+       running_total < st.session_state.sim_benchmark_total - 1e-6:
+        st.caption(
+            f"Staggering these batches cost "
+            f"{st.session_state.sim_benchmark_total - running_total:.4f} "
+            f"points of total match quality vs solving all 6 at once."
+        )
+
+    st.markdown("---")
+
+    # ── Checkbox list of remaining (unstaffed) curated projects ────
+    if not remaining_ids:
+        st.success("All 6 projects staffed. Reset below to run again.")
+    else:
+        st.subheader("Select projects for this batch")
+        checked_ids = []
+        for pid in remaining_ids:
+            proj = all_projects_df.loc[pid] if pid in all_projects_df.index \
+                   else pd.Series()
+            label = (
+                f"**{pid}** — {proj.get('project_name', pid)}  \n"
+                f"Roles: {proj.get('required_roles', '?')} · "
+                f"Skills: {proj.get('required_skills', '?')}"
+            )
+            if st.checkbox(label, key=f"sim_chk_{pid}"):
+                checked_ids.append(pid)
+
+        if st.button("▶️ Run Selected", disabled=not checked_ids):
+            with st.spinner(f"Solving {len(checked_ids)} project(s), "
+                             f"excluding {len(st.session_state.sim_busy_ids)} "
+                             f"already-busy employee(s)..."):
+                opt = new_optimizer()
+                opt.build(projects_to_staff=checked_ids,
+                          exclude_ids=st.session_state.sim_busy_ids)
+                result = opt.solve(time_limit_sec=30)
+
+            st.session_state.sim_batch_number += 1
+            batch_n = st.session_state.sim_batch_number
+
+            if result.empty:
+                # Item 25 spec -- handle INFEASIBLE/empty the same
+                # honest way staff_custom_project() already does: show
+                # which role(s) had zero eligible candidates left,
+                # rather than a bare "nothing happened". Note this is
+                # genuinely all-or-nothing: CP-SAT (via the item 24
+                # contradiction marker) fails the WHOLE batch the
+                # moment even one role-slot has zero candidates left --
+                # any other project in this same batch that would
+                # otherwise have solved fine gets nothing too.
+                if opt.unstaffable_by_exclusion:
+                    slots = ", ".join(f"{pid}/{role}" for pid, role
+                                       in opt.unstaffable_by_exclusion)
+                    st.error(
+                        f"Batch {batch_n} could not be staffed at all -- "
+                        f"zero eligible candidates left (everyone eligible "
+                        f"was already assigned in an earlier batch) for: "
+                        f"{slots}. This blocks the entire batch, even any "
+                        f"other project selected here that would "
+                        f"otherwise have solved fine -- try running this "
+                        f"batch with fewer projects selected at once."
+                    )
+                else:
+                    st.error(
+                        f"Batch {batch_n} produced no feasible assignment "
+                        f"for the selected project(s) -- try a different "
+                        f"combination or check project requirements."
+                    )
+                # Deliberately NOT added to sim_staffed_project_ids --
+                # nothing was actually staffed, so these must stay
+                # selectable for a retry with a smaller combination
+                # (per the message above). Marking them staffed here
+                # would make that advice impossible to follow.
+            else:
+                for _, row in result.iterrows():
+                    st.session_state.sim_results.append({
+                        "project_id":  row["project_id"],
+                        "role":        row["role"],
+                        "employee_id": row["employee_id"],
+                        "final_score": float(row["final_score"]),
+                        "batch_number": batch_n,
+                    })
+                st.session_state.sim_busy_ids |= set(result["employee_id"])
+                st.session_state.sim_staffed_project_ids |= set(checked_ids)
+                st.success(f"Batch {batch_n}: staffed {len(result)} role(s).")
+            st.rerun()
+
+    # ── Results so far, grouped by batch ────────────────────────────
+    if st.session_state.sim_results:
+        st.markdown("---")
+        st.subheader("Results so far")
+        results_df = pd.DataFrame(st.session_state.sim_results)
+        results_df["name"] = results_df["employee_id"].map(
+            lambda eid: employees.loc[eid, "name"]
+            if eid in employees.index else eid
+        )
+        for batch_n in sorted(results_df["batch_number"].unique()):
+            batch_df = results_df[results_df["batch_number"] == batch_n]
+            st.markdown(f"**Batch {batch_n}** "
+                        f"(score: {batch_df['final_score'].sum():.4f})")
+            st.dataframe(
+                batch_df[["project_id", "role", "name", "final_score"]]
+                .rename(columns={"final_score": "score"})
+                .reset_index(drop=True),
+                use_container_width=True,
+            )
+
+    st.markdown("---")
+    if st.button("🔄 Reset Simulation"):
+        # Item 25 spec -- clears busy/results/staffed state, leaves
+        # sim_benchmark_total cached since it doesn't depend on user
+        # choices (same 6 projects, same untouched pool every time).
+        st.session_state.sim_busy_ids = set()
+        st.session_state.sim_results = []
+        st.session_state.sim_staffed_project_ids = set()
+        st.session_state.sim_batch_number = 0
+        for pid in CURATED_PROJECT_IDS:
+            st.session_state.pop(f"sim_chk_{pid}", None)
+        st.rerun()
 
 # ── Mode: Browse Projects ────────────────────────────────────────────
 
