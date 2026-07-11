@@ -13,7 +13,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from src.project_store import (
     save_project, update_project_assignments, get_project_by_id,
     load_all_projects, list_custom_projects, get_busy_employee_ids,
-    get_capacity_summary,
+    get_capacity_summary, save_candidate_pool, get_candidate_pool,
 )
 from src.employee_store import save_employee
 
@@ -172,3 +172,70 @@ class TestGetCapacitySummary:
         project = _sample_project(required_roles="Backend Dev")
         summary = get_capacity_summary(project, real_employees, empty_plan)
         assert summary["total_pool"] == len(real_employees) + 1  # not +2
+
+
+# ── Item 26 -- save_candidate_pool() / get_candidate_pool() ────────
+
+def _sample_pool():
+    """Same shape match_all_roles_adhoc() returns: {role: DataFrame}."""
+    return {
+        "Backend Dev": pd.DataFrame([
+            {"employee_id": "E001", "name": "A", "role": "Backend Dev",
+             "final_score": 0.8, "eligible": True},
+            {"employee_id": "E003", "name": "C", "role": "Backend Dev",
+             "final_score": 0.6, "eligible": True},
+        ]),
+        "Frontend Dev": pd.DataFrame([
+            {"employee_id": "E002", "name": "B", "role": "Frontend Dev",
+             "final_score": 0.7, "eligible": True},
+        ]),
+    }
+
+
+class TestCandidatePool:
+    def test_round_trip_returns_the_same_roles(self):
+        pid = save_project(_sample_project())
+        save_candidate_pool(pid, _sample_pool())
+        pool = get_candidate_pool(pid)
+        assert set(pool.keys()) == {"Backend Dev", "Frontend Dev"}
+
+    def test_round_trip_preserves_dataframe_content(self):
+        pid = save_project(_sample_project())
+        pool_in = _sample_pool()
+        save_candidate_pool(pid, pool_in)
+        pool_out = get_candidate_pool(pid)
+        pd.testing.assert_frame_equal(
+            pool_out["Backend Dev"], pool_in["Backend Dev"]
+        )
+        assert list(pool_out["Frontend Dev"]["employee_id"]) == ["E002"]
+
+    def test_unsolved_project_returns_none_not_keyerror(self):
+        """A project that was saved but never had save_candidate_pool()
+        called on it -- e.g. still mid-form, or created in a session
+        predating item 21 -- must return None, not raise."""
+        pid = save_project(_sample_project())
+        assert get_candidate_pool(pid) is None  # must not raise
+
+    def test_unknown_project_id_returns_none_not_keyerror(self):
+        """A project_id that was never save_project()'d at all."""
+        assert get_candidate_pool("C_NEVER_EXISTED") is None  # must not raise
+
+    def test_saving_a_second_time_overwrites_not_appends(self):
+        """A re-solve (e.g. after editing requirements) should replace
+        the stored pool, not accumulate old roles alongside new ones."""
+        pid = save_project(_sample_project())
+        save_candidate_pool(pid, _sample_pool())
+        new_pool = {"Data Engineer": pd.DataFrame([
+            {"employee_id": "E999", "name": "Z", "role": "Data Engineer",
+             "final_score": 0.9, "eligible": True},
+        ])}
+        save_candidate_pool(pid, new_pool)
+        pool = get_candidate_pool(pid)
+        assert set(pool.keys()) == {"Data Engineer"}
+
+    def test_pools_for_different_projects_stay_isolated(self):
+        pid1 = save_project(_sample_project(name="One"))
+        pid2 = save_project(_sample_project(name="Two"))
+        save_candidate_pool(pid1, _sample_pool())
+        assert get_candidate_pool(pid2) is None
+        assert get_candidate_pool(pid1) is not None

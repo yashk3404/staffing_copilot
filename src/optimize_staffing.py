@@ -113,6 +113,18 @@ class StaffingOptimizer:
 
     # ── Solve ─────────────────────────────────────────────────────
 
+    # Item 26 -- module-level, shared by every empty-result return
+    # path in solve() (INFEASIBLE, no-feasible-solution, and
+    # zero-variables-were-true) so they're all identically shaped
+    # instead of some being a bare columnless pd.DataFrame() and
+    # others having explicit columns -- a test written against one
+    # path caught the other two still being inconsistent.
+    @staticmethod
+    def _empty_result() -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=["project_id", "role", "employee_id", "final_score"]
+        )
+
     def solve(self, time_limit_sec: int = 30) -> pd.DataFrame:
         self.solver.parameters.max_time_in_seconds = time_limit_sec
         status = self.solver.Solve(self.model)
@@ -137,11 +149,11 @@ class StaffingOptimizer:
                       f"(zero eligible candidates left): {slots}")
             else:
                 print("  Try: relaxing constraints, or reducing project count.")
-            return pd.DataFrame()
+            return self._empty_result()
 
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             print("   No feasible solution found.")
-            return pd.DataFrame()
+            return self._empty_result()
 
         results = []
         for key, var in self.x.items():
@@ -171,9 +183,7 @@ class StaffingOptimizer:
         if results:
             result_df = pd.DataFrame(results).sort_values(["project_id", "role"])
         else:
-            result_df = pd.DataFrame(
-                columns=["project_id", "role", "employee_id", "final_score"]
-            )
+            result_df = self._empty_result()
         print(f"   Assigned {len(result_df)} role-slots | "
               f"Total score: {self.solver.ObjectiveValue() / 10000:.2f}")
         return result_df

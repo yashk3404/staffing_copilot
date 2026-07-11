@@ -177,3 +177,103 @@ def test_staff_custom_project_without_employees_df_still_works():
 
     result = staff_custom_project(project, m, empty_plan, verbose=False)
     assert not result.empty
+
+
+# ── Item 26 -- exclude_ids (item 24) ────────────────────────────────
+#
+# Synthetic score data throughout, not the bundled score_matrix.csv --
+# it turned out (discovered while building item 24) every role within
+# one premade project shares an identical eligible pool, which would
+# mask exactly the bug these tests exist to catch. Hand-built data
+# isolates one role's candidate pool from another's on purpose.
+
+@pytest.fixture
+def synthetic_optimizer():
+    """
+    Two projects, three roles, deliberately different-sized candidate
+    pools per role so exclude_ids can be aimed at exactly one role's
+    pool without touching another's -- PX/Backend Dev has 2 eligible
+    candidates, PX/Frontend Dev has exactly 1 (E3), PY/Backend Dev has
+    its own separate pool (E4) so cross-project behavior is covered
+    too.
+    """
+    opt = StaffingOptimizer.__new__(StaffingOptimizer)
+    from ortools.sat.python import cp_model as _cp_model
+    opt.model = _cp_model.CpModel()
+    opt.x = {}
+    opt.solver = _cp_model.CpSolver()
+    opt.df = None
+    opt.unstaffable_by_exclusion = []
+    opt.employees = pd.DataFrame()
+    opt.scores = pd.DataFrame([
+        {"project_id": "PX", "role": "Backend Dev",  "employee_id": "E1", "final_score": 0.8, "eligible": True},
+        {"project_id": "PX", "role": "Backend Dev",  "employee_id": "E2", "final_score": 0.6, "eligible": True},
+        {"project_id": "PX", "role": "Frontend Dev", "employee_id": "E3", "final_score": 0.7, "eligible": True},
+        {"project_id": "PY", "role": "Backend Dev",  "employee_id": "E4", "final_score": 0.5, "eligible": True},
+    ])
+    return opt
+
+
+class TestExcludeIds:
+    def test_excluded_rows_dropped_before_solving(self, synthetic_optimizer):
+        synthetic_optimizer.build(projects_to_staff=["PX"], exclude_ids={"E1"})
+        assert "E1" not in set(synthetic_optimizer.df.employee_id)
+        assert "E2" in set(synthetic_optimizer.df.employee_id)
+
+    def test_no_exclude_ids_behaves_exactly_as_before(self, synthetic_optimizer):
+        synthetic_optimizer.build(projects_to_staff=["PX"])
+        assert set(synthetic_optimizer.df.employee_id) == {"E1", "E2", "E3"}
+        assert synthetic_optimizer.unstaffable_by_exclusion == []
+
+    def test_partial_exclusion_still_solves_via_remaining_candidate(self, synthetic_optimizer):
+        """E1 excluded, but E2 still covers Backend Dev -- must reassign,
+        not fail."""
+        synthetic_optimizer.build(projects_to_staff=["PX"], exclude_ids={"E1"})
+        result = synthetic_optimizer.solve(time_limit_sec=5)
+        assert not result.empty
+        assert set(result[result.role == "Backend Dev"].employee_id) == {"E2"}
+
+    def test_full_exclude_of_a_roles_only_candidate_is_infeasible_not_a_crash(
+        self, synthetic_optimizer
+    ):
+        """Frontend Dev's ONLY eligible candidate (E3) excluded --
+        must produce a clean INFEASIBLE-shaped empty result, not raise."""
+        synthetic_optimizer.build(projects_to_staff=["PX"], exclude_ids={"E3"})
+        assert ("PX", "Frontend Dev") in synthetic_optimizer.unstaffable_by_exclusion
+        result = synthetic_optimizer.solve(time_limit_sec=5)  # must not raise
+        assert result.empty
+
+    def test_full_exclude_fails_whole_batch_not_just_starved_role(self, synthetic_optimizer):
+        """PX/Backend Dev (E1,E2 both fine) sits in the SAME batch as
+        PX/Frontend Dev (E3 excluded) -- CP-SAT contradiction fails the
+        whole model, not just the starved slot. This is deliberate
+        (see optimize_staffing.py build()) -- locking it in so a future
+        change doesn't accidentally start returning partial results
+        without dashboard.py's Simulate mode being updated to match."""
+        synthetic_optimizer.build(projects_to_staff=["PX"], exclude_ids={"E3"})
+        result = synthetic_optimizer.solve(time_limit_sec=5)
+        assert result.empty  # PX/Backend Dev's otherwise-valid assignment is gone too
+
+    def test_exclude_everyone_returns_empty_df_with_columns_not_a_crash(
+        self, synthetic_optimizer
+    ):
+        """Every candidate for every role excluded -> zero decision
+        variables at all. Historically raised KeyError from
+        pd.DataFrame([]).sort_values(...) -- must return a
+        properly-columned empty DataFrame instead."""
+        synthetic_optimizer.build(
+            projects_to_staff=["PX"], exclude_ids={"E1", "E2", "E3"}
+        )
+        result = synthetic_optimizer.solve(time_limit_sec=5)  # must not raise
+        assert result.empty
+        assert list(result.columns) == \
+            ["project_id", "role", "employee_id", "final_score"]
+
+    def test_exclusion_in_one_project_does_not_affect_another(self, synthetic_optimizer):
+        """Excluding E3 (PX/Frontend Dev's only candidate) must not
+        touch PY, which has its own separate pool (E4)."""
+        synthetic_optimizer.build(
+            projects_to_staff=["PX", "PY"], exclude_ids={"E3"}
+        )
+        assert synthetic_optimizer.unstaffable_by_exclusion == [("PX", "Frontend Dev")]
+        assert "E4" in set(synthetic_optimizer.df.employee_id)
