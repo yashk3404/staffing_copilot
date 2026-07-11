@@ -16,7 +16,8 @@ Try it here: **[staffing-copilot](https://staffing-copilot.streamlit.app/)**
 4. **Explains** every staffing decision in plain English using a locally-running LLM (zero API cost)
 5. **Shows** which numeric features drove each match score using SHAP
 6. **Takes custom projects and employees** — create an ad-hoc project or add an employee (manual form or CV upload, parsed via the same LLM pipeline) mid-session, and both become real candidates in the matcher/solver, not just stored records
-7. **Presents** everything through an interactive Streamlit dashboard
+7. **Gives custom projects the same live explanations and runner-up detail as premade ones**, and lets you batch-solve several custom projects at once in **Simulate mode** to compare joint vs staggered staffing outcomes
+8. **Presents** everything through an interactive Streamlit dashboard
 
 ## Tech stack
 
@@ -32,7 +33,7 @@ Try it here: **[staffing-copilot](https://staffing-copilot.streamlit.app/)**
 | Explainability | SHAP (LinearExplainer) |
 | Dashboard | Streamlit |
 | Data | Synthetic (Faker, Indian locale — 80 employees, 30 projects) + session-added custom employees/projects |
-| Testing | pytest (95 tests) |
+| Testing | pytest (116 tests) |
 
 ## Project structure
 
@@ -53,9 +54,9 @@ staffing_copilot/
 │   └── dashboard.py             # Streamlit dashboard
 ├── notebooks/                   # Week-by-week build notebooks (01–14)
 ├── data/processed/              # Generated artifacts (embeddings, scores, plans)
-├── tests/                       # pytest suite (95 tests)
+├── tests/                       # pytest suite (116 tests)
 ├── docs/project_summary.md      # Full project write-up
-├── CHANGELOG.md                 # v1.0-internship → v2.0 history
+├── CHANGELOG.md                 # v1.0-internship → v2.1 history
 └── requirements.txt
 ```
 
@@ -111,7 +112,7 @@ pytest tests/ -v
 | Optimizer status | OPTIMAL, zero double-bookings |
 | Average match score (demo run) | 0.810 |
 | Dominant SHAP feature | `semantic_score` (weight ≈ 0.70) |
-| Tests passing | 95 / 95 |
+| Tests passing | 116 / 116 |
 
 ## Caveats
 
@@ -126,6 +127,8 @@ Full design rationale (why CP-SAT over greedy, why a local LLM, why two explaina
 
 Originally built as a 30-day internship deliverable (see `v1.0-internship`
 tag). Actively extended since — custom employee/project intake, resume
-parsing, and a merged matching pool were added in v2.0 — see
+parsing, and a merged matching pool were added in v2.0; live
+explanations and runner-up detail for custom projects, plus a
+multi-project Simulate mode, were added in v2.1 — see
 [CHANGELOG.md](CHANGELOG.md) for the full history of what's changed
 post-internship.

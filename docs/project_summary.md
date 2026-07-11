@@ -9,9 +9,10 @@
 > deliverable (`v1.0-internship` tag) and is kept as-is for that
 > record. For what's been built since — custom employee/project
 > intake, resume parsing, the merged matching pool, the expanded
-> test suite — see the "Post-Internship Extensions (v2.0)" section
-> at the end, and [`../CHANGELOG.md`](../CHANGELOG.md) for the full
-> history.
+> test suite, live explanations and Simulate mode for custom
+> projects — see the "Post-Internship Extensions (v2.0)" and
+> "Post-v2.0 Extensions (v2.1)" sections at the end, and
+> [`../CHANGELOG.md`](../CHANGELOG.md) for the full history.
 
 ---
 
@@ -292,3 +293,75 @@ possible to introduce in N different places instead of one.
 - Role-aware skill validation (flagging a skill that doesn't fit the
   selected role, using `skills_taxonomy.csv`'s `related_roles`
   column) is scoped but not yet built.
+
+---
+
+## Post-v2.0 Extensions (v2.1)
+
+Everything below closes the gap v2.0 left open: custom projects were
+real candidates for matching and solving, but didn't get the
+explanation/runner-up experience premade projects had, and could
+only be solved one at a time. Full commit-level detail is in
+[`../CHANGELOG.md`](../CHANGELOG.md).
+
+### What was added
+
+- **Candidate pool persistence** — `project_store.save_candidate_pool()`
+  / `get_candidate_pool()`, called right after matching and before
+  the CP-SAT solve runs in `staff_custom_project()`. Without this,
+  there was nothing for a runner-up panel to read for a custom
+  project once the solve finished.
+- **`ContextRetriever.retrieve_adhoc()`** — the custom-project
+  counterpart to `retrieve()`, built from the in-memory project and
+  candidate pool instead of the offline CSV/JSON files that only
+  cover the 30 premade projects. Deliberately built to the same
+  output shape as `retrieve()`, so `generate_explanation.build_prompt()`
+  needed zero changes to consume either one.
+- **Dashboard wiring** — the "Role Details & Explanations" panel now
+  calls `retrieve_adhoc()` for custom projects instead of showing a
+  static "not available" caption, giving them the same explanation
+  and runner-up experience premade projects always had.
+- **`exclude_ids` in `StaffingOptimizer`** — lets a caller drop
+  specific candidates before solving. This is what makes Simulate
+  mode's batch solving meaningful: without it, two projects solved
+  "together" could still independently pick the same person.
+- **Simulate mode** — batch-solve a chosen set of custom projects,
+  either jointly (one CP-SAT solve sees all of them at once) or
+  staggered (solved one at a time, excluding whoever the previous
+  project already took). The two modes are directly comparable on
+  average match score, which is what makes the value of joint
+  planning demonstrable rather than asserted.
+- **Test suite** — grown from 95 to 116 tests: 7 covering
+  `exclude_ids` behavior (including the "full exclude of a role's
+  only candidates" edge case, which now returns a clean `INFEASIBLE`
+  instead of crashing), 6 covering the candidate-pool round-trip,
+  and a new `test_retrieve_context.py` (11 tests) whose specific job
+  is catching schema drift between `retrieve()` and `retrieve_adhoc()`
+  before it reaches `generate_explanation.py`.
+
+### Design decisions specific to this phase
+
+**Schema parity over a shared implementation.** `retrieve()` and
+`retrieve_adhoc()` are two separate functions reading from two
+different data sources (offline files vs. in-memory session state),
+not one function with a branch. What they share is a contract: same
+output keys, same nesting, same error shape. `test_retrieve_context.py`
+tests that contract directly, since a silent mismatch there would
+only surface downstream as a confusing `generate_explanation.py`
+failure, not an obvious one.
+
+**Whole-batch failure is intentional, not a bug.** If a Simulate
+batch hits a role with zero eligible candidates left, the entire
+batch fails rather than silently skipping that one role. This
+mirrors real staffing: a plan that quietly drops a role isn't a
+smaller version of the plan, it's a different plan the manager never
+approved. Failed batches stay easy to retry with a smaller
+combination.
+
+### Known limitations carried into v2.1
+
+- Premade projects' "Full Candidate Pool" table is unchanged —
+  still reads the offline `score_matrix.csv` only, out of scope for
+  this phase.
+- Persistence is still `st.session_state`-only, same deferred
+  decision as v2.0.
