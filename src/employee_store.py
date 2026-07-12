@@ -1,73 +1,151 @@
 """
-Employee storage interface -- Phase 2 item 6 (CE0xx ID scheme) and
-the storage layer Phase 3 builds on.
+Employee storage interface -- Phase 2 item 6 (CE0xx ID scheme).
 
-Everything here talks to st.session_state right now. That's a
-deliberate placeholder, not the final answer -- when persistence is
-decided (Phase 5, items 19-20), only the *internals* of these
-functions change. Every call site elsewhere (dashboard.py, matcher.py
-via load_all_employees()) stays exactly the same.
+Item 23: internals swapped from st.session_state to Supabase Postgres
+(employees table, item 21/23 schema). Every function signature and
+return shape is unchanged from the session-state version -- callers
+(dashboard.py, matcher.py via load_all_employees()) needed zero edits.
+
+Scope (Option B, locked in the v3 roadmap): only user-added employees
+live here. The 80-employee demo roster stays in
+employees_with_index.csv + precomputed embeddings, untouched, and is
+always passed in as employees_df by the caller.
+
+Auth requirement: every function here needs an authenticated user in
+st.session_state["user"] (set by auth.require_login()). Since
+require_login() runs before any other UI in dashboard.py, that's
+already guaranteed by the time these are called in the app -- tests
+set up a fake user explicitly instead (see conftest.py).
 """
 
 import streamlit as st
 import pandas as pd
 
+from src.auth import get_supabase_client
+
 CUSTOM_ID_PREFIX = "CE"
 CUSTOM_ID_WIDTH = 3  # CE001, CE002, ... -- never collides with the
-                     # real E0xx range from employees_with_index.csv
+                     # real E0xx range from employees_with_index.csv.
+                     # Scoped per-owner as of item 23's 0002 migration,
+                     # not globally unique -- two different users can
+                     # each have their own "CE001".
+
+_RECORD_COLUMNS = [
+    "name", "role", "experience_years", "availability_pct",
+    "skills", "department", "location", "github_username",
+]
 
 
-def _ensure_session_store():
-    if "custom_employees" not in st.session_state:
-        st.session_state.custom_employees = {}      # {employee_id: dict}
-    if "custom_employee_counter" not in st.session_state:
-        st.session_state.custom_employee_counter = 0
+def _owner_id() -> str:
+    user = st.session_state.get("user")
+    if not user:
+        raise RuntimeError(
+            "employee_store called with no authenticated user in "
+            "session -- auth.require_login() must run first."
+        )
+    return user.id
 
 
-def _next_custom_employee_id() -> str:
-    _ensure_session_store()
-    st.session_state.custom_employee_counter += 1
-    n = st.session_state.custom_employee_counter
+def _row_to_record(row: dict) -> dict:
+    """DB row -> the dict shape callers already expect. skills comes
+    back from Postgres as a jsonb list; matcher.py (and the rest of
+    the app) expects the same ';'-joined string convention
+    employees_with_index.csv uses, so it's converted back here --
+    this is the one place that difference should live."""
+    record = dict(row)
+    skills = record.get("skills")
+    if isinstance(skills, list):
+        record["skills"] = ";".join(skills)
+    return record
+
+
+def _record_to_row(record: dict, owner_id: str, employee_id: str) -> dict:
+    skills = record.get("skills", "")
+    if isinstance(skills, str):
+        skills_list = [s.strip() for s in skills.split(";") if s.strip()]
+    else:
+        skills_list = list(skills) if skills else []
+    return {
+        "employee_id": employee_id,
+        "owner_id": owner_id,
+        "name": record.get("name"),
+        "role": record.get("role"),
+        "experience_years": record.get("experience_years"),
+        "availability_pct": record.get("availability_pct"),
+        "skills": skills_list,
+        "department": record.get("department"),
+        "location": record.get("location"),
+        "github_username": record.get("github_username"),
+    }
+
+
+def _next_custom_employee_id(supabase, owner_id: str) -> str:
+    """Sequential per-owner, not globally unique -- see the
+    CUSTOM_ID_PREFIX comment and the 0002 migration. Computed from
+    this owner's own rows (the only ones RLS lets them see), so it's
+    always a fresh max+1 rather than a counter that could drift from
+    what's actually stored."""
+    result = (
+        supabase.table("employees")
+        .select("employee_id")
+        .eq("owner_id", owner_id)
+        .execute()
+    )
+    nums = []
+    for row in result.data:
+        eid = row["employee_id"]
+        if eid.startswith(CUSTOM_ID_PREFIX) and eid[len(CUSTOM_ID_PREFIX):].isdigit():
+            nums.append(int(eid[len(CUSTOM_ID_PREFIX):]))
+    n = (max(nums) + 1) if nums else 1
     return f"{CUSTOM_ID_PREFIX}{n:0{CUSTOM_ID_WIDTH}d}"
 
 
 def save_employee(record: dict) -> str:
     """
     Commits a reviewed employee record -- from either the CV path
-    (parse_resume() output, post-review-edit) or the manual form,
-    both should be normalized to the same shape by the time they
-    reach here -- into storage.
+    (parse_resume() output, post-review-edit) or the manual form --
+    into Supabase, scoped to the logged-in user via owner_id.
 
-    Assigns a CE0xx id if the record doesn't already have one; never
-    overwrites an existing id, so calling this twice on an edited
-    record updates it in place instead of creating a duplicate.
-
-    record is expected to have at least: name, role, experience_years,
-    availability_pct, skills (list), department, location. Extra keys
-    are stored as-is -- this function doesn't validate shape, that's
-    the review form's job before it ever calls save_employee().
+    Assigns a CE0xx id if the record doesn't already have one; calling
+    this again with an existing employee_id upserts in place instead
+    of creating a duplicate (matches the old session-dict behavior).
 
     Returns the assigned (or existing) employee_id.
     """
-    _ensure_session_store()
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
     emp_id = record.get("employee_id")
     if not emp_id:
-        emp_id = _next_custom_employee_id()
-        record = {**record, "employee_id": emp_id}
-    st.session_state.custom_employees[emp_id] = record
+        emp_id = _next_custom_employee_id(supabase, owner_id)
+
+    row = _record_to_row(record, owner_id, emp_id)
+    supabase.table("employees").upsert(
+        row, on_conflict="employee_id,owner_id"
+    ).execute()
     return emp_id
 
 
 def get_employee_by_id(employee_id: str,
                         employees_df: pd.DataFrame = None):
     """
-    Looks up an employee by id -- checks session-added custom
-    employees first, then the real roster if employees_df is passed.
-    Returns a dict, or None if not found in either place.
+    Looks up an employee by id -- checks this user's Supabase-stored
+    custom employees first, then the real roster if employees_df is
+    passed. Returns a dict, or None if not found in either place.
     """
-    _ensure_session_store()
-    if employee_id in st.session_state.custom_employees:
-        return st.session_state.custom_employees[employee_id]
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
+    result = (
+        supabase.table("employees")
+        .select("*")
+        .eq("employee_id", employee_id)
+        .eq("owner_id", owner_id)
+        .limit(1)
+        .execute()
+    )
+    if result.data:
+        return _row_to_record(result.data[0])
     if employees_df is not None and employee_id in employees_df.index:
         return employees_df.loc[employee_id].to_dict()
     return None
@@ -75,31 +153,32 @@ def get_employee_by_id(employee_id: str,
 
 def load_all_employees(employees_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Merges the real roster with session-added custom employees into
-    one DataFrame, indexed by employee_id (same index convention as
-    employees_df -- matcher.py's set_index("employee_id")).
+    Merges the real roster with this user's Supabase-stored custom
+    employees into one DataFrame, indexed by employee_id (same index
+    convention as employees_df).
 
-    This should become the single call site every candidate-pool /
-    matching function reads from going forward -- match(), match_adhoc(),
+    This is the single call site every candidate-pool / matching
+    function reads from -- match(), match_adhoc(),
     build_score_matrix(), etc. -- instead of reading employees_df
-    directly. That's what makes "custom employees show up in premade
-    projects' candidate pools too" (a decision made back in the
-    original planning conversation) actually true everywhere at once,
-    rather than needing to be threaded through each function one by
-    one.
+    directly, so custom employees show up as candidates everywhere.
     """
-    _ensure_session_store()
-    custom = st.session_state.custom_employees
-    if not custom:
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
+    result = supabase.table("employees").select("*").eq("owner_id", owner_id).execute()
+    if not result.data:
         return employees_df
 
-    custom_df = pd.DataFrame.from_dict(custom, orient="index")
+    custom_records = [_row_to_record(r) for r in result.data]
+    custom_df = pd.DataFrame(custom_records).set_index("employee_id")
     custom_df.index.name = employees_df.index.name
 
     # Custom employees may be missing columns the real roster has
-    # (e.g. cost_band if that's not asked on the review form yet) --
-    # fill with None rather than letting concat silently drop data
-    # or raise on column mismatch.
+    # (e.g. cost_band if that's not asked on the review form) -- fill
+    # with None rather than letting concat silently drop data or
+    # raise on column mismatch. Also drops owner_id/created_at/id,
+    # which aren't part of employees_df's schema -- matches the old
+    # session-state version's merged view exactly.
     for col in employees_df.columns:
         if col not in custom_df.columns:
             custom_df[col] = None
@@ -110,10 +189,11 @@ def load_all_employees(employees_df: pd.DataFrame) -> pd.DataFrame:
 
 def list_custom_employees() -> list:
     """
-    Session-added custom employees as a list of dicts -- this is
-    exactly the shape find_possible_duplicates()'s custom_employees
-    argument already expects, so Phase 3/4 wiring is just:
-    find_possible_duplicates(candidate, employees_df, list_custom_employees()).
+    This user's Supabase-stored custom employees as a list of dicts --
+    the shape find_possible_duplicates()'s custom_employees argument
+    already expects.
     """
-    _ensure_session_store()
-    return list(st.session_state.custom_employees.values())
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+    result = supabase.table("employees").select("*").eq("owner_id", owner_id).execute()
+    return [_row_to_record(r) for r in result.data]
