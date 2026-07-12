@@ -41,10 +41,16 @@ from src.project_store import (
     get_candidate_pool,
     get_busy_employee_ids,
     list_custom_projects,
-    update_project_assignments,
+    delete_project,
 )
 from src.optimize_staffing import staff_custom_project, StaffingOptimizer
-from src.employee_store import save_employee, list_custom_employees, load_all_employees
+from src.employee_store import (
+    save_employee,
+    list_custom_employees,
+    load_all_employees,
+    load_own_employees,
+    delete_employee,
+)
 from src.resume_parser import (
     parse_resume,
     suggest_skill_matches,
@@ -221,6 +227,80 @@ projects_df  = load_projects()
 # every time an employee gets added.
 all_employees_df = load_all_employees(employees)
 
+# v3 UI update -- custom (C0xx) projects are "your" projects, so they
+# should only ever be staffed from "your" employee list, never the
+# shared 80-person demo/synthetic roster. own_employees_df is that
+# restricted pool -- see load_own_employees()'s docstring. Kept
+# separate from all_employees_df (which stays the merged view used
+# everywhere a *display* just needs to resolve an employee_id to a
+# name, e.g. an already-assigned custom-project team member who might
+# technically be a demo-roster id from before this change).
+own_employees_df = load_own_employees(employees)
+
+# ── Popup dialogs (End Project / Delete Employee) ────────────────────
+#
+# st.dialog opens a real modal popup -- used here for (a) confirming a
+# destructive action before it happens, and (b) a one-shot "done"
+# notice right after it happens. The "done" notice is driven by a
+# session_state flag set immediately before the st.rerun() that
+# follows a delete, and popped here (so it only shows once) at the top
+# of the very next run, before any mode-specific UI renders.
+
+@st.dialog("End Project")
+def _confirm_end_project(project_id: str, project_name: str, n_assigned: int):
+    st.write(
+        f"This will un-staff **{n_assigned}** employee(s) and "
+        f"permanently remove **{project_id} — {project_name}** from "
+        f"your project list. This can't be undone."
+    )
+    c1, c2 = st.columns(2)
+    if c1.button("🛑 End Project", type="primary", width="stretch"):
+        delete_project(project_id)
+        st.session_state["_project_ended_notice"] = project_name
+        st.session_state["_pending_mode"] = "Browse Projects"
+        st.session_state.pop("_pending_project_select", None)
+        st.rerun()
+    if c2.button("Cancel", width="stretch"):
+        st.rerun()
+
+
+@st.dialog("Delete Employee")
+def _confirm_delete_employee(employee_id: str, name: str, is_busy: bool):
+    st.write(
+        f"Permanently delete **{name}** ({employee_id}) from your "
+        f"employee list? This can't be undone."
+    )
+    if is_busy:
+        st.warning(
+            "⚠️ This employee is currently assigned to a project. "
+            "Deleting them leaves that assignment pointing at a "
+            "removed employee -- consider ending that project first."
+        )
+    c1, c2 = st.columns(2)
+    if c1.button("🗑️ Delete", type="primary", width="stretch"):
+        delete_employee(employee_id)
+        st.session_state["_employee_deleted_notice"] = name
+        st.rerun()
+    if c2.button("Cancel", width="stretch"):
+        st.rerun()
+
+
+if "_project_ended_notice" in st.session_state:
+    _ended_name = st.session_state.pop("_project_ended_notice")
+
+    @st.dialog("Project Ended")
+    def _project_ended_popup(name: str):
+        st.success(f"✅ **{name}** was ended and removed from your project list.")
+        if st.button("OK", type="primary", width="stretch"):
+            st.rerun()
+
+    _project_ended_popup(_ended_name)
+
+if "_employee_deleted_notice" in st.session_state:
+    st.toast(
+        f"🗑️ Deleted employee: {st.session_state.pop('_employee_deleted_notice')}"
+    )
+
 # ── Sidebar: mode switch (item 13) ──────────────────────────────────
 #
 # This is the structural change the rest of Phase 4 hangs off of.
@@ -246,7 +326,8 @@ if "_pending_mode" in st.session_state:
 
 mode = st.sidebar.radio(
     "Mode",
-    ["🎬 Demo Mode", "Browse Projects", "Create Project", "Add Employee"],
+    ["🎬 Demo Mode", "Browse Projects", "Create Project",
+     "👥 My Employees", "Add Employee"],
     key="app_mode",
 )
 
@@ -332,6 +413,7 @@ _custom_total_assignments = sum(
     len(p.get("assignments", {})) for p in list_custom_projects()
 )
 st.sidebar.markdown(
+    f"**My employees:** {len(own_employees_df)}  \n"
     f"**Custom projects:** {len(custom_ids)}  \n"
     f"**Custom assignments:** {_custom_total_assignments}"
 )
@@ -585,12 +667,57 @@ def render_demo_project(project_id: str):
 if mode == "Create Project":
     st.title("➕ Create New Project")
     st.caption(
-        "Stage a new project and auto-staff it against employees not "
-        "already committed to a premade or another custom project "
-        "this session."
+        "Stage a new project and auto-staff it from **your own saved "
+        "employees only** -- not the built-in demo roster (that stays "
+        "reserved for 🎬 Demo Mode). Add employees first if your list "
+        "is empty."
     )
 
-    role_options  = sorted(all_employees_df["role"].dropna().unique())
+    # v3 UI update: custom projects match against own_employees_df,
+    # never all_employees_df / the demo CSV. An EMPTY plan (not the
+    # real staffing_plan.csv) is used for the busy-exclusion check
+    # below on purpose -- staffing_plan.csv's E0xx assignments belong
+    # to the separate, session-only Demo Mode world. Once an employee
+    # id can also exist as one of THIS user's own saved employees
+    # (e.g. after running scripts/migrate_demo_roster_to_user.py),
+    # treating a Demo Mode assignment as "busy" here would incorrectly
+    # shrink this user's own candidate pool over an id collision that
+    # has nothing to do with their custom projects. Only this user's
+    # OWN custom-project assignments (walked by get_busy_employee_ids()
+    # regardless of the plan passed in) should count as "busy" here.
+    _no_demo_plan = plan.iloc[0:0]
+
+    if own_employees_df.empty:
+        st.warning(
+            "👥 You don't have any employees saved yet, so there's "
+            "nothing to staff a project with. Head to **Add Employee** "
+            "to add people one at a time, or run "
+            "`scripts/migrate_demo_roster_to_user.py` once to import "
+            "the 80-person demo roster into your own account."
+        )
+    else:
+        with st.expander(
+            f"👀 Preview available candidates ({len(own_employees_df)} "
+            f"total)", expanded=False,
+        ):
+            busy_now = get_busy_employee_ids(_no_demo_plan)
+            preview = own_employees_df.reset_index()
+            preview["Status"] = preview["employee_id"].apply(
+                lambda eid: "🔴 Busy" if eid in busy_now else "🟢 Available"
+            )
+            role_pick = st.multiselect(
+                "Filter by role", sorted(own_employees_df["role"].dropna().unique()),
+                key="create_project_candidate_filter",
+            )
+            if role_pick:
+                preview = preview[preview["role"].isin(role_pick)]
+            st.dataframe(
+                preview[["employee_id", "name", "role", "experience_years",
+                         "availability_pct", "skills", "Status"]],
+                hide_index=True, width="stretch",
+            )
+
+    role_options  = sorted(own_employees_df["role"].dropna().unique())
     skill_options = sorted(
         pd.read_csv(BASE / "skills_taxonomy.csv")["skill_name"].unique()
     )
@@ -615,7 +742,9 @@ if mode == "Create Project":
         f_roles  = st.multiselect("Required Roles", role_options)
         f_skills = st.multiselect("Required Skills", skill_options)
 
-        submitted = st.form_submit_button("Create & Staff Project")
+        submitted = st.form_submit_button(
+            "Create & Staff Project", disabled=own_employees_df.empty
+        )
 
     if submitted:
         if not f_name or not f_roles or not f_skills:
@@ -644,7 +773,7 @@ if mode == "Create Project":
             # just inferred from a failed solve afterward. Per product
             # decision, this warns but does not block submission --
             # the solve below is still attempted.
-            cap = get_capacity_summary(project, employees, plan)
+            cap = get_capacity_summary(project, own_employees_df, _no_demo_plan)
             st.markdown("**Capacity check** (busy employees excluded, "
                         "before running the matcher):")
             cap_rows = [
@@ -666,8 +795,8 @@ if mode == "Create Project":
             matcher = load_matcher()
             with st.spinner("Matching and solving..."):
                 result = staff_custom_project(
-                    project, matcher, plan,
-                    employees_df=all_employees_df, verbose=False
+                    project, matcher, _no_demo_plan,
+                    employees_df=own_employees_df, verbose=False
                 )
 
             if result.empty:
@@ -681,8 +810,8 @@ if mode == "Create Project":
                 st.success("✅ Project staffed")
                 display = result.copy()
                 display["name"] = display["employee_id"].apply(
-                    lambda eid: all_employees_df.loc[eid, "name"]
-                    if eid in all_employees_df.index else eid
+                    lambda eid: own_employees_df.loc[eid, "name"]
+                    if eid in own_employees_df.index else eid
                 )
                 st.dataframe(
                     display[["role", "name", "employee_id", "final_score"]],
@@ -706,6 +835,117 @@ if mode == "Create Project":
                 st.session_state["_pending_project_select"] = pid
                 st.session_state["_pending_mode"] = "Browse Projects"
                 st.rerun()
+
+# ── Mode: 👥 My Employees ─────────────────────────────────────────────
+#
+# v3 UI addition. Lists ONLY this user's own saved employees
+# (own_employees_df / load_own_employees()) -- for
+# yashk3404@gmail.com after running
+# scripts/migrate_demo_roster_to_user.py, that's the full former demo
+# roster too, now owned data instead of a permanently shared CSV.
+# Search/role-filter first, then a table, then a "manage one employee"
+# panel below with the delete action -- flat "delete button per row"
+# doesn't scale once this list is 80+ people.
+
+if mode == "👥 My Employees":
+    st.title("👥 My Employees")
+    st.caption(
+        "Everyone you've saved to your own account. This -- and only "
+        "this -- is the candidate pool your custom projects (Create "
+        "Project) staff from."
+    )
+
+    if own_employees_df.empty:
+        st.info(
+            "No employees saved yet. Add one via **Add Employee**, or "
+            "run `scripts/migrate_demo_roster_to_user.py` once to "
+            "import the built-in 80-person demo roster into your own "
+            "account in one go."
+        )
+    else:
+        busy_ids = get_busy_employee_ids(plan.iloc[0:0])
+
+        f1, f2 = st.columns([2, 1])
+        search_q = f1.text_input(
+            "Search by name or employee ID", placeholder="e.g. Aryan or CE001",
+        )
+        role_filter = f2.selectbox(
+            "Filter by role",
+            ["All roles"] + sorted(own_employees_df["role"].dropna().unique()),
+        )
+
+        filtered = own_employees_df.copy()
+        if search_q:
+            q = search_q.strip().lower()
+            filtered = filtered[
+                filtered["name"].astype(str).str.lower().str.contains(q, na=False)
+                | filtered.index.astype(str).str.lower().str.contains(q)
+            ]
+        if role_filter != "All roles":
+            filtered = filtered[filtered["role"] == role_filter]
+
+        display = filtered.reset_index()
+        display["Status"] = display["employee_id"].apply(
+            lambda eid: "🔴 Assigned" if eid in busy_ids else "🟢 Available"
+        )
+        st.dataframe(
+            display[["employee_id", "name", "role", "experience_years",
+                     "availability_pct", "department", "location", "Status"]]
+            .rename(columns={
+                "employee_id": "ID", "name": "Name", "role": "Role",
+                "experience_years": "Exp (yrs)",
+                "availability_pct": "Availability %",
+                "department": "Department", "location": "Location",
+            }),
+            hide_index=True, width="stretch",
+        )
+        st.caption(
+            f"Showing {len(filtered)} of {len(own_employees_df)} employee(s)."
+        )
+
+        st.markdown("---")
+        st.subheader("Manage an employee")
+
+        if filtered.empty:
+            st.caption("No employees match your search/filter above.")
+        else:
+            manage_id = st.selectbox(
+                "Select employee",
+                filtered.index.tolist(),
+                format_func=lambda eid: f"{eid} — {filtered.loc[eid, 'name']}",
+                key="manage_employee_select",
+            )
+            emp = filtered.loc[manage_id]
+            is_busy = manage_id in busy_ids
+
+            st.markdown(
+                f'<div class="sc-card">'
+                f'<div class="sc-card-title">{emp.get("name", manage_id)}</div>'
+                f'<div class="sc-card-sub">{manage_id} · {emp.get("role", "—")}'
+                + (' · <span style="color:#F16A6A">Currently assigned</span>'
+                   if is_busy else "")
+                + f'</div>'
+                f'<div class="sc-row">'
+                f'<span>💼 {emp.get("experience_years", "?")} yrs experience</span>'
+                f'<span>📈 {emp.get("availability_pct", "?")}% available</span>'
+                f'<span>🏢 {emp.get("department") or "—"}</span>'
+                f'<span>📍 {emp.get("location") or "—"}</span>'
+                f'</div>'
+                + (
+                    "".join(
+                        f'<div class="sc-chip">{s.strip()}</div>'
+                        for s in str(emp.get("skills") or "").split(";")
+                        if s.strip()
+                    )
+                )
+                + f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            if st.button("🗑️ Delete Employee", key=f"del_{manage_id}"):
+                _confirm_delete_employee(
+                    manage_id, emp.get("name", manage_id), is_busy
+                )
 
 # ── Mode: Add Employee (items 15 + 16) ───────────────────────────────
 #
@@ -1138,18 +1378,25 @@ if mode == "Browse Projects":
         custom_record = get_project_by_id(selected_project)
         assignments = (custom_record or {}).get("assignments", {})
 
-        if assignments:
-            # Mirrors Demo Mode's End Project -- un-staff and free the
-            # employees for another project. update_project_assignments()
-            # with {} is already the exact primitive this needs; no new
-            # store function required.
-            if st.button(
-                f"🛑 End Project — un-staff and free "
-                f"{len(assignments)} employee(s)",
-                key=f"end_custom_{selected_project}",
-            ):
-                update_project_assignments(selected_project, {})
-                st.rerun()
+        # v3 UI update: "End Project" now fully removes the project
+        # (via delete_project(), not just clearing assignments) and
+        # confirms first -- see the _confirm_end_project /
+        # _project_ended_popup dialogs defined near the top of this
+        # file. Available for any custom project, staffed or not, so
+        # an unstaffed one can be cleaned up too, not just a staffed
+        # one.
+        if st.button(
+            f"🛑 End Project"
+            + (f" — un-staff {len(assignments)} employee(s) and remove"
+               if assignments else " — remove from your project list"),
+            key=f"end_custom_{selected_project}",
+        ):
+            _confirm_end_project(
+                selected_project,
+                custom_record.get("project_name", selected_project)
+                if custom_record else selected_project,
+                len(assignments),
+            )
 
         project_plan = pd.DataFrame(
             [
@@ -1402,12 +1649,44 @@ if mode == "Browse Projects":
     st.subheader("Full Candidate Pool")
 
     if is_custom_project:
-        st.caption(
-            "Not available for custom-created projects -- this table "
-            "comes from score_matrix.csv, which is generated offline "
-            "in the notebooks against the premade project set only, "
-            "and has no rows for session-created C0xx projects."
-        )
+        # v3 UI update -- previously "not available" here (this used
+        # to only read the offline score_matrix.csv, which has no
+        # rows for C0xx projects). Now renders the same
+        # candidate_pool this project's Role Details section above
+        # already fetched via get_candidate_pool() -- the full ranked
+        # {role: DataFrame} the solve produced, straight from THIS
+        # user's own employee list (own_employees_df), not the demo
+        # roster.
+        if candidate_pool is None:
+            st.caption(
+                "No candidate pool saved for this project yet -- "
+                "solve it (or re-solve it) from **Create Project** to "
+                "see every eligible candidate per role here."
+            )
+        else:
+            st.caption(
+                "Every eligible candidate from your own employee "
+                "list, ranked by match score for each role. ✅ marks "
+                "who was actually assigned."
+            )
+            for role, role_df in candidate_pool.items():
+                assigned_rows = project_plan[project_plan.role == role]
+                assigned_id = assigned_rows.iloc[0]["employee_id"] \
+                    if not assigned_rows.empty else None
+
+                pool = role_df.sort_values(
+                    "final_score", ascending=False
+                ).reset_index(drop=True)
+                pool["rank"] = range(1, len(pool) + 1)
+                pool["assigned"] = pool["employee_id"].apply(
+                    lambda eid: "✅" if eid == assigned_id else ""
+                )
+
+                cols = [c for c in
+                        ["rank", "assigned", "name", "employee_id", "final_score"]
+                        if c in pool.columns]
+                with st.expander(f"**{role}** — {len(pool)} candidate(s)"):
+                    st.dataframe(pool[cols], width="stretch", hide_index=True)
     else:
         st.caption(
             "Top 10 eligible candidates per role, ranked by match "

@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.employee_store import (
     save_employee, get_employee_by_id, load_all_employees,
-    list_custom_employees,
+    list_custom_employees, load_own_employees, delete_employee,
 )
 
 
@@ -124,3 +124,57 @@ class TestListCustomEmployees:
         save_employee(_sample_record("B"))
         names = {e["name"] for e in list_custom_employees()}
         assert names == {"A", "B"}
+
+
+class TestLoadOwnEmployees:
+    """v3 UI update -- custom projects match against ONLY the user's
+    own saved employees, never the shared demo/synthetic roster."""
+
+    def test_empty_when_no_custom_employees(self, real_roster):
+        own = load_own_employees(real_roster)
+        assert len(own) == 0
+        # Same columns as the real roster, so it's a drop-in
+        # employees_df= for match_adhoc()/staff_custom_project() even
+        # when this user hasn't saved anyone yet.
+        assert list(own.columns) == list(real_roster.columns)
+
+    def test_excludes_demo_roster_rows(self, real_roster):
+        save_employee(_sample_record("Custom Dev"))
+        own = load_own_employees(real_roster)
+        assert "E001" not in own.index
+        assert "E002" not in own.index
+
+    def test_includes_only_this_users_saved_employees(self, real_roster):
+        save_employee(_sample_record("Custom Dev"))
+        own = load_own_employees(real_roster)
+        assert len(own) == 1
+        assert "CE001" in own.index
+
+    def test_does_not_mutate_original_roster(self, real_roster):
+        original_len = len(real_roster)
+        save_employee(_sample_record("Custom Dev"))
+        load_own_employees(real_roster)
+        assert len(real_roster) == original_len
+
+
+class TestDeleteEmployee:
+    def test_removes_the_employee(self):
+        emp_id = save_employee(_sample_record("To Delete"))
+        assert len(list_custom_employees()) == 1
+        delete_employee(emp_id)
+        assert list_custom_employees() == []
+
+    def test_get_employee_by_id_returns_none_after_delete(self):
+        emp_id = save_employee(_sample_record("To Delete"))
+        delete_employee(emp_id)
+        assert get_employee_by_id(emp_id) is None
+
+    def test_does_not_affect_other_employees(self):
+        keep_id = save_employee(_sample_record("Keep"))
+        gone_id = save_employee(_sample_record("Gone"))
+        delete_employee(gone_id)
+        remaining = {e["employee_id"] for e in list_custom_employees()}
+        assert remaining == {keep_id}
+
+    def test_noop_for_unknown_id(self):
+        delete_employee("CE999")  # must not raise

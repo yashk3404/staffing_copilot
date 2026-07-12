@@ -30,7 +30,7 @@ Schema for the parts that ARE in Postgres:
 import streamlit as st
 import pandas as pd
 
-from src.employee_store import load_all_employees, _owner_id
+from src.employee_store import _owner_id
 from src.auth import get_supabase_client
 
 CUSTOM_ID_PREFIX = "C"
@@ -151,6 +151,36 @@ def update_project_assignments(project_id: str, assignments: dict) -> None:
             for role, emp_id in assignments.items()
         ]
         supabase.table("assignments").insert(rows).execute()
+
+
+def delete_project(project_id: str) -> None:
+    """
+    Fully removes one of this user's own custom projects -- the
+    project row AND its assignments (children delete via `on delete
+    cascade` in the assignments FK, but assignments is deleted
+    explicitly first anyway so this doesn't depend on that cascade
+    being configured correctly).
+
+    This is what "End Project" in the dashboard calls: unlike
+    update_project_assignments(project_id, {}) (which only un-staffs
+    and leaves the empty project sitting in the picker), this removes
+    the project from load_all_projects() / list_custom_projects()
+    entirely -- so it disappears from the "Select Project" dropdown,
+    matching what "ended" should mean.
+
+    Scoped by owner_id in the query AND enforced again by the
+    projects_delete / assignments_delete RLS policies at the DB level.
+    Silent no-op if project_id doesn't belong to this user.
+    """
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
+    supabase.table("assignments").delete().eq("project_id", project_id).eq(
+        "owner_id", owner_id
+    ).execute()
+    supabase.table("projects").delete().eq("project_id", project_id).eq(
+        "owner_id", owner_id
+    ).execute()
 
 
 def save_candidate_pool(project_id: str, role_scores: dict) -> None:
@@ -287,45 +317,48 @@ def get_busy_employee_ids(staffing_plan_df: pd.DataFrame) -> set:
 
 
 def get_capacity_summary(project: dict,
-                          employees_df: pd.DataFrame,
+                          candidate_pool_df: pd.DataFrame,
                           staffing_plan_df: pd.DataFrame,
                           min_avail: int = 60) -> dict:
     """
     Phase 3 item 12 -- the "X of 80 available" pre-check shown on the
-    Create Project form. Unchanged from the session-state version --
-    it only calls load_all_employees() / get_busy_employee_ids(),
-    both of which now read Supabase underneath without this function
-    needing to know that.
+    Create Project form.
 
-    project: dict with "required_roles" (";"-separated str).
-    employees_df: the real roster, passed in by the caller.
+    candidate_pool_df: the ALREADY-FINAL pool to check against --
+    dashboard.py passes employee_store.load_own_employees(employees)
+    for custom projects (v3: no synthetic/demo candidates), so this
+    function no longer calls load_all_employees() internally. Doing
+    that merge here used to be convenient when there was only one
+    possible pool; now that custom projects and Demo Mode use two
+    different pools, merging inside this function would silently
+    double-count rows if a caller ever passed something already
+    merged. Callers own the merge decision; this just does the count.
 
     Returns:
         {
-          "total_pool":      int,  # all employees, real + custom
+          "total_pool":      int,  # size of candidate_pool_df
           "total_available": int,  # not busy AND meets min_avail
           "by_role": {
               role: {"in_role": int, "available": int}, ...
           }
         }
     """
-    all_employees = load_all_employees(employees_df)
     busy = get_busy_employee_ids(staffing_plan_df)
 
     free_mask = (
-        (~all_employees.index.to_series().isin(busy)) &
-        (all_employees["availability_pct"] >= min_avail)
+        (~candidate_pool_df.index.to_series().isin(busy)) &
+        (candidate_pool_df["availability_pct"] >= min_avail)
     )
 
     summary = {
-        "total_pool":      len(all_employees),
+        "total_pool":      len(candidate_pool_df),
         "total_available": int(free_mask.sum()),
         "by_role":         {},
     }
 
     roles = [r.strip() for r in project["required_roles"].split(";")]
     for role in roles:
-        in_role_mask = all_employees["role"] == role
+        in_role_mask = candidate_pool_df["role"] == role
         summary["by_role"][role] = {
             "in_role":   int(in_role_mask.sum()),
             "available": int((in_role_mask & free_mask).sum()),

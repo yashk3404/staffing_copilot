@@ -1,5 +1,38 @@
 # Changelog
 
+## [v3-wip] Pre-item-25 UI pass -- own-employee-only custom projects
+
+### Changed
+- **Custom projects no longer match against the shared demo/synthetic
+  roster.** `employee_store.load_own_employees()` (new) returns ONLY
+  the logged-in user's own saved employees, shaped like `employees_df`
+  so it's a drop-in `employees_df=` for `staff_custom_project()` /
+  `get_capacity_summary()`. Create Project's capacity check, matcher
+  solve, and result display all switched from `all_employees_df` to
+  this restricted pool. `get_capacity_summary()`'s contract changed to
+  match: it no longer merges internally (see its docstring) -- callers
+  pass the already-final pool they want counted.
+- **"End Project" now fully removes the project** (`project_store.
+  delete_project()`, new) instead of only clearing its assignments --
+  it disappears from the "Select Project" dropdown, confirmed via a
+  popup before it happens and a second popup after.
+- **"Full Candidate Pool"** for custom projects now renders the saved
+  ranked candidate pool per role (previously "not available" -- that
+  table used to only read the premade-only `score_matrix.csv`).
+
+### Added
+- **"👥 My Employees" mode** -- search/filter, a table of every
+  employee you've saved, and a delete action (with a confirm popup)
+  per employee. `employee_store.delete_employee()` is the underlying
+  primitive.
+- **Candidate preview** on Create Project -- an expandable table of
+  your own employees (optionally filtered by role) before you submit
+  the form, so "who's actually available" is visible up front.
+- **`scripts/migrate_demo_roster_to_user.py`** -- one-time import of
+  the 80-employee demo roster into a real account's own `employees`
+  rows (signs in as that user, so no service-role key is needed; RLS
+  is respected, not bypassed).
+
 ## [v2.1] - Live explanations & Simulate mode for custom projects
 
 ### Added

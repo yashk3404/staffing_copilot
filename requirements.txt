@@ -9,7 +9,7 @@ faiss-cpu
 ortools
 requests
 scikit-learn
-streamlit
+streamlit>=1.37  # st.dialog (stable) used by the delete/end-project confirmation popups
 shap
 python-dotenv
 supabase

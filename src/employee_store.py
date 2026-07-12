@@ -151,6 +151,37 @@ def get_employee_by_id(employee_id: str,
     return None
 
 
+def _fetch_custom_employees_frame(employees_df: pd.DataFrame):
+    """
+    Shared fetch behind load_all_employees() / load_own_employees().
+    Returns this user's Supabase-stored employees as a DataFrame
+    shaped exactly like employees_df (same columns, same index name),
+    or None if the user has no rows of their own yet.
+
+    Custom employees may be missing columns the real roster has (e.g.
+    cost_band, which isn't asked on the review form) -- filled with
+    None rather than letting concat silently drop data or raise on
+    column mismatch. Also drops owner_id/created_at/id, which aren't
+    part of employees_df's schema -- matches the old session-state
+    version's merged view exactly.
+    """
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
+    result = supabase.table("employees").select("*").eq("owner_id", owner_id).execute()
+    if not result.data:
+        return None
+
+    custom_records = [_row_to_record(r) for r in result.data]
+    custom_df = pd.DataFrame(custom_records).set_index("employee_id")
+    custom_df.index.name = employees_df.index.name
+
+    for col in employees_df.columns:
+        if col not in custom_df.columns:
+            custom_df[col] = None
+    return custom_df[employees_df.columns]
+
+
 def load_all_employees(employees_df: pd.DataFrame) -> pd.DataFrame:
     """
     Merges the real roster with this user's Supabase-stored custom
@@ -161,30 +192,41 @@ def load_all_employees(employees_df: pd.DataFrame) -> pd.DataFrame:
     function reads from -- match(), match_adhoc(),
     build_score_matrix(), etc. -- instead of reading employees_df
     directly, so custom employees show up as candidates everywhere.
+
+    Note: for custom (C0xx) *project* matching, dashboard.py uses
+    load_own_employees() instead -- see that function's docstring for
+    why the demo CSV roster is deliberately excluded there.
     """
-    supabase = get_supabase_client()
-    owner_id = _owner_id()
-
-    result = supabase.table("employees").select("*").eq("owner_id", owner_id).execute()
-    if not result.data:
+    custom_df = _fetch_custom_employees_frame(employees_df)
+    if custom_df is None:
         return employees_df
-
-    custom_records = [_row_to_record(r) for r in result.data]
-    custom_df = pd.DataFrame(custom_records).set_index("employee_id")
-    custom_df.index.name = employees_df.index.name
-
-    # Custom employees may be missing columns the real roster has
-    # (e.g. cost_band if that's not asked on the review form) -- fill
-    # with None rather than letting concat silently drop data or
-    # raise on column mismatch. Also drops owner_id/created_at/id,
-    # which aren't part of employees_df's schema -- matches the old
-    # session-state version's merged view exactly.
-    for col in employees_df.columns:
-        if col not in custom_df.columns:
-            custom_df[col] = None
-    custom_df = custom_df[employees_df.columns]
-
     return pd.concat([employees_df, custom_df])
+
+
+def load_own_employees(employees_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ONLY this user's own saved employees -- the shared, read-only
+    80-employee demo CSV roster is deliberately NOT mixed in here.
+
+    Used as the candidate pool for custom (C0xx) projects: those are
+    "your" projects, so they should only ever be staffed from "your"
+    employee list (which, for yashk3404@gmail.com, includes the
+    former demo roster too -- see scripts/migrate_demo_roster_to_user.py
+    -- but that's now just data the user owns and can delete, not a
+    permanently shared pool everyone matches against). Demo Mode
+    (premade P0xx projects) is unaffected -- it still reads
+    employees_df / the precomputed embeddings directly, unchanged.
+
+    Shaped identically to employees_df (same columns/index) so it's a
+    drop-in employees_df= argument for match_adhoc() /
+    staff_custom_project() / get_capacity_summary(). Empty (zero rows,
+    same columns) if this user hasn't saved any employees yet, rather
+    than raising or falling back to the demo roster.
+    """
+    custom_df = _fetch_custom_employees_frame(employees_df)
+    if custom_df is None:
+        return employees_df.iloc[0:0].copy()
+    return custom_df
 
 
 def list_custom_employees() -> list:
@@ -197,3 +239,27 @@ def list_custom_employees() -> list:
     owner_id = _owner_id()
     result = supabase.table("employees").select("*").eq("owner_id", owner_id).execute()
     return [_row_to_record(r) for r in result.data]
+
+
+def delete_employee(employee_id: str) -> None:
+    """
+    Deletes one of this user's own employees. Scoped by owner_id in
+    the query AND enforced again at the DB level by the
+    employees_delete RLS policy (owner_id = auth.uid()) -- belt and
+    suspenders, same pattern as every other write in this module.
+
+    Silent no-op if employee_id doesn't belong to this user (nothing
+    to delete), matching save_employee()'s "checked explicitly, fails
+    quietly" convention elsewhere in this file. Does NOT touch any
+    project's assignments -- if the employee is currently staffed
+    somewhere, that assignment row is left dangling (an employee_id
+    with no matching employees row); callers should check
+    project_store.get_busy_employee_ids() first and warn the user
+    before calling this, which is what the dashboard's delete
+    confirmation dialog does.
+    """
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+    supabase.table("employees").delete().eq("employee_id", employee_id).eq(
+        "owner_id", owner_id
+    ).execute()

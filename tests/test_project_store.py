@@ -14,6 +14,7 @@ from src.project_store import (
     save_project, update_project_assignments, get_project_by_id,
     load_all_projects, list_custom_projects, get_busy_employee_ids,
     get_capacity_summary, save_candidate_pool, get_candidate_pool,
+    delete_project,
 )
 from src.employee_store import save_employee
 
@@ -137,12 +138,23 @@ class TestGetBusyEmployeeIds:
 
 
 class TestGetCapacitySummary:
-    def test_total_pool_includes_custom_employees(self, real_employees, empty_plan):
+    """
+    v3 UI update: get_capacity_summary() no longer merges internally
+    (see its docstring) -- callers now pass the already-final pool
+    they want checked. These tests pass load_all_employees(real_employees)
+    explicitly where the old behavior relied on the internal merge,
+    and add one case using load_own_employees() to lock in the
+    custom-projects-only-see-your-own-employees contract.
+    """
+
+    def test_total_pool_reflects_whatever_pool_is_passed(self, real_employees, empty_plan):
+        from src.employee_store import load_all_employees
         save_employee({"name": "X", "role": "Backend Dev", "experience_years": 5,
                         "availability_pct": 100, "skills": "Python",
                         "department": "Eng", "location": "Remote"})
         project = _sample_project(required_roles="Backend Dev")
-        summary = get_capacity_summary(project, real_employees, empty_plan)
+        pool = load_all_employees(real_employees)
+        summary = get_capacity_summary(project, pool, empty_plan)
         assert summary["total_pool"] == len(real_employees) + 1
 
     def test_busy_employees_excluded_from_available(self, real_employees):
@@ -162,16 +174,70 @@ class TestGetCapacitySummary:
         assert summary["by_role"]["Frontend Dev"]["in_role"] == 1
         assert summary["by_role"]["Frontend Dev"]["available"] == 0
 
-    def test_does_not_double_count_capacity_summary_already_merges(self, real_employees, empty_plan):
-        # get_capacity_summary() calls load_all_employees() internally --
-        # passing it an ALREADY-merged frame would double-concat custom
-        # employees. This locks in the single-merge contract.
+    def test_does_not_double_count_when_pool_passed_once(self, real_employees, empty_plan):
+        # Passing an already-merged pool is a single merge now (the
+        # function itself never merges) -- this locks in that a
+        # pre-merged frame is counted exactly once, not doubled.
+        from src.employee_store import load_all_employees
         save_employee({"name": "X", "role": "Backend Dev", "experience_years": 5,
                         "availability_pct": 100, "skills": "Python",
                         "department": "Eng", "location": "Remote"})
         project = _sample_project(required_roles="Backend Dev")
-        summary = get_capacity_summary(project, real_employees, empty_plan)
+        pool = load_all_employees(real_employees)
+        summary = get_capacity_summary(project, pool, empty_plan)
         assert summary["total_pool"] == len(real_employees) + 1  # not +2
+
+    def test_custom_projects_pool_excludes_demo_roster(self, real_employees, empty_plan):
+        # load_own_employees() (v3: custom projects don't match against
+        # synthetic/demo employees) should report a pool sized to ONLY
+        # this user's own saved employees, not real_employees at all.
+        from src.employee_store import load_own_employees
+        save_employee({"name": "X", "role": "Backend Dev", "experience_years": 5,
+                        "availability_pct": 100, "skills": "Python",
+                        "department": "Eng", "location": "Remote"})
+        project = _sample_project(required_roles="Backend Dev")
+        pool = load_own_employees(real_employees)
+        summary = get_capacity_summary(project, pool, empty_plan)
+        assert summary["total_pool"] == 1  # only "X", none of real_employees
+
+
+
+
+class TestDeleteProject:
+    def test_removes_the_project(self):
+        pid = save_project(_sample_project())
+        assert pid in {p["project_id"] for p in list_custom_projects()}
+        delete_project(pid)
+        assert pid not in {p["project_id"] for p in list_custom_projects()}
+
+    def test_removes_from_load_all_projects(self, real_projects):
+        pid = save_project(_sample_project())
+        delete_project(pid)
+        merged = load_all_projects(real_projects)
+        assert pid not in merged.index
+
+    def test_removes_assignments_too(self, empty_plan):
+        pid = save_project(_sample_project())
+        update_project_assignments(pid, {"Backend Dev": "E001"})
+        delete_project(pid)
+        # E001 should no longer show as busy once the project (and its
+        # assignments) is gone.
+        assert get_busy_employee_ids(empty_plan) == set()
+
+    def test_get_project_by_id_returns_none_after_delete(self):
+        pid = save_project(_sample_project())
+        delete_project(pid)
+        assert get_project_by_id(pid) is None
+
+    def test_noop_for_unknown_project(self):
+        delete_project("C999")  # must not raise
+
+    def test_does_not_affect_other_projects(self):
+        keep = save_project(_sample_project(name="Keep"))
+        gone = save_project(_sample_project(name="Gone"))
+        delete_project(gone)
+        remaining = {p["project_id"] for p in list_custom_projects()}
+        assert remaining == {keep}
 
 
 # ── Item 26 -- save_candidate_pool() / get_candidate_pool() ────────
