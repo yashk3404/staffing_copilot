@@ -12,6 +12,7 @@ scikit-learn
 streamlit
 shap
 python-dotenv
+supabase
 pytest
 pdfplumber
 python-docx

@@ -58,6 +58,12 @@ st.set_page_config(
     layout="wide",
 )
 
+# Item 22 -- everything below this line assumes an authenticated
+# user. require_login() st.stop()s the script (showing login/signup
+# instead) until st.session_state["user"] is set.
+from src.auth import require_login
+require_login()
+
 # ── Item 18 -- visual polish ─────────────────────────────────────────
 #
 # One shared <style> block, injected once here, plus small HTML
