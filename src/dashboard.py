@@ -39,6 +39,9 @@ from src.project_store import (
     get_capacity_summary,
     load_all_projects,
     get_candidate_pool,
+    get_busy_employee_ids,
+    list_custom_projects,
+    update_project_assignments,
 )
 from src.optimize_staffing import staff_custom_project, StaffingOptimizer
 from src.employee_store import save_employee, list_custom_employees, load_all_employees
@@ -243,29 +246,28 @@ if "_pending_mode" in st.session_state:
 
 mode = st.sidebar.radio(
     "Mode",
-    ["Browse Projects", "Create Project", "Add Employee", "Simulate"],
+    ["🎬 Demo Mode", "Browse Projects", "Create Project", "Add Employee"],
     key="app_mode",
 )
 
 st.sidebar.markdown("---")
 
-# ── Item 14 -- unified project selector (premade + custom), reading
-# through load_all_projects() (item 9) instead of only projects_df.
+st.sidebar.markdown("---")
+
+# ── Item 14 -- project selector, reading through load_all_projects()
+# (item 9) instead of only projects_df.
 #
-# Scope note: premade projects only show here if they already have a
-# staffing_plan.csv assignment -- same behavior as before item 14,
-# not a new restriction. Showing all 30 premade projects (including
-# the 25 with no assignments yet) is a bigger UX question -- what
-# does an unstaffed premade project's "Assigned Team" table even show
-# -- left for a later phase, not part of this wiring.
-#
-# Custom (C0xx) projects always show once created, since save_project()
-# only runs when the user deliberately submits the Create Project form.
+# Rescoped: Browse Projects now lists ONLY custom (C0xx) projects --
+# real/uploaded data the user actually created via Create Project.
+# Premade (P0xx) projects moved entirely to 🎬 Demo Mode, which has
+# its own selector + live-solve + view flow; showing them here too
+# would just be a second, staler way to reach the same 30 projects
+# (this dropdown never lets you *run* a premade project anyway, only
+# view an existing staffing_plan.csv assignment).
 all_projects_df = load_all_projects(projects_df)
 
-staffed_premade_ids = set(plan["project_id"].unique())
-custom_ids = set(all_projects_df.index) - set(projects_df.index)
-project_ids = sorted(staffed_premade_ids | custom_ids)
+custom_ids  = set(all_projects_df.index) - set(projects_df.index)
+project_ids = sorted(custom_ids)
 
 NEW_PROJECT_SENTINEL = "__new_project__"
 
@@ -288,8 +290,14 @@ if mode == "Browse Projects":
             return "➕ Add New Project"
         name = all_projects_df.loc[pid, "project_name"] \
             if pid in all_projects_df.index else ""
-        tag = " (custom)" if pid in custom_ids else ""
-        return f"{pid} — {name}{tag}" if name else pid
+        return f"{pid} — {name}" if name else pid
+
+    if not project_ids:
+        st.sidebar.caption(
+            "No projects created yet -- use **➕ Add New Project** "
+            "below, or head to **🎬 Demo Mode** to try the built-in "
+            "premade projects."
+        )
 
     selected_project = st.sidebar.selectbox(
         "Select Project",
@@ -312,14 +320,251 @@ if mode == "Browse Projects":
         st.session_state["_pending_mode"] = "Create Project"
         st.rerun()
 
+    # Always true in practice now (project_ids is custom-only), kept
+    # as a variable rather than hardcoded True since the render
+    # section below still branches on it -- one flag, one meaning,
+    # even though the premade branch is now unreachable from here.
     is_custom_project = selected_project in custom_ids
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(
-    f"**Total projects:** {len(project_ids)}  \n"
-    f"**Total assignments:** {len(plan)}  \n"
-    f"**Avg match score:** {plan.final_score.mean():.3f}"
+
+_custom_total_assignments = sum(
+    len(p.get("assignments", {})) for p in list_custom_projects()
 )
+st.sidebar.markdown(
+    f"**Custom projects:** {len(custom_ids)}  \n"
+    f"**Custom assignments:** {_custom_total_assignments}"
+)
+
+# ── 🎬 Demo Mode support ─────────────────────────────────────────────
+#
+# Demo Mode live-solves premade projects into st.session_state, never
+# into staffing_plan.csv, so retriever.retrieve() (which reads
+# self.plan) can't see these assignments. Reuses retrieve_adhoc()
+# instead -- it was built for custom (C0xx) projects, but all it
+# actually needs is a project-shaped dict with "assignments" and a
+# {role: DataFrame} candidate pool, neither of which is
+# custom-project-specific. _build_demo_candidate_pool() builds that
+# pool straight from score_matrix.csv + the real roster, giving every
+# premade project the same explanation/runner-up machinery custom
+# projects already have, without a second code path.
+
+@st.cache_data
+def _build_demo_candidate_pool(project_id: str) -> dict:
+    sub = score_matrix[score_matrix.project_id == project_id]
+    pool = {}
+    for role in sub["role"].unique():
+        role_rows = sub[sub.role == role]
+        # score_matrix's "role" column is the required slot (all rows
+        # here share one value); employees' "role" column is each
+        # candidate's own job title. retrieve_adhoc() expects the
+        # latter (matches match_all_roles_adhoc()'s shape) -- suffix
+        # the collision and drop the required-slot copy.
+        merged = role_rows.merge(
+            employees[["name", "role", "experience_years",
+                       "availability_pct", "skills"]],
+            left_on="employee_id", right_index=True, how="left",
+            suffixes=("_required", ""),
+        )
+        merged = merged.drop(columns=["role_required"], errors="ignore")
+        pool[role] = merged.sort_values(
+            "final_score", ascending=False
+        ).reset_index(drop=True)
+    return pool
+
+
+def render_demo_project(project_id: str):
+    """
+    Renders one Demo-Mode-staffed premade project -- project details
+    card, assigned team cards, per-role explanation/runner-up panels,
+    full candidate pool -- same visual language as Browse Projects
+    mode. Reads assignments from st.session_state.demo_staffed
+    (session-only), not staffing_plan.csv.
+    """
+    proj = all_projects_df.loc[project_id] \
+        if project_id in all_projects_df.index else pd.Series()
+    assignments_rows = st.session_state.demo_staffed.get(project_id, [])
+    project_plan = pd.DataFrame(assignments_rows)
+
+    st.markdown(f"### 📋 {proj.get('project_name', project_id)}")
+    st.caption(f"Project ID: {project_id} (Demo Mode, session only)")
+
+    roles_chips = "".join(
+        f'<span class="sc-chip">{r}</span>'
+        for r in str(proj.get("required_roles", "")).split(";") if r
+    )
+    skills_chips = "".join(
+        f'<span class="sc-chip">{s}</span>'
+        for s in str(proj.get("required_skills", "")).split(";") if s
+    )
+    card_html = (
+        '<div class="sc-card">'
+        f'<div class="sc-card-sub">Client: {proj.get("client", "—")}</div>'
+        '<div style="margin-bottom:10px;">'
+        f'{priority_badge(proj.get("priority", "—"))}'
+        f'{budget_badge(proj.get("budget_band", "—"))}'
+        '</div>'
+        '<div class="sc-row">'
+        f'<span>⏱ <b>{proj.get("deadline_days", "—")}</b> days deadline</span>'
+        f'<span>🎓 <b>{proj.get("min_experience", "—")}</b> yrs min. experience</span>'
+        '</div>'
+    )
+    if roles_chips:
+        card_html += f'<div style="margin-top:10px;"><b>Roles:</b> {roles_chips}</div>'
+    if skills_chips:
+        card_html += f'<div style="margin-top:6px;"><b>Skills:</b> {skills_chips}</div>'
+    card_html += '</div>'
+    st.markdown(card_html, unsafe_allow_html=True)
+
+    st.markdown("#### Assigned Team")
+    if project_plan.empty:
+        st.caption(
+            "No assignments -- this shouldn't happen for a staffed "
+            "demo project; try ending and re-running it."
+        )
+        return
+
+    display_rows = []
+    for _, row in project_plan.iterrows():
+        emp_id = row["employee_id"]
+        emp = all_employees_df.loc[emp_id] \
+            if emp_id in all_employees_df.index else pd.Series()
+        display_rows.append({
+            "Role": row["role"],
+            "Employee": emp.get("name", emp_id),
+            "Job Title": emp.get("role", ""),
+            "Experience (yr)": emp.get("experience_years", ""),
+            "Availability (%)": emp.get("availability_pct", ""),
+            "Match Score": f"{row['final_score']:.4f}",
+        })
+
+    n_cols = 3
+    team_cols = st.columns(n_cols)
+    for i, row in enumerate(display_rows):
+        with team_cols[i % n_cols]:
+            st.markdown(
+                '<div class="sc-card">'
+                f'<div class="sc-card-title">{row["Employee"]}</div>'
+                f'<div class="sc-card-sub">{row["Role"]} · '
+                f'{row["Job Title"]}</div>'
+                '<div class="sc-row">'
+                f'<span>📈 {row["Experience (yr)"]} yrs</span>'
+                f'<span>🕒 {row["Availability (%)"]}% avail.</span>'
+                f'<span>🎯 {row["Match Score"]}</span>'
+                '</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("#### Role Details & Explanations")
+
+    candidate_pool = _build_demo_candidate_pool(project_id)
+    demo_project_dict = {
+        **proj.to_dict(),
+        "assignments": {r["role"]: r["employee_id"] for r in assignments_rows},
+    }
+
+    for _, row in project_plan.iterrows():
+        role = row["role"]
+        emp_id = row["employee_id"]
+        emp = all_employees_df.loc[emp_id] \
+            if emp_id in all_employees_df.index else pd.Series()
+        score_label = f"{row['final_score']:.4f}"
+
+        ctx = retriever.retrieve_adhoc(
+            project_id, role, demo_project_dict, candidate_pool
+        )
+
+        with st.expander(
+            f"**{role}** → {emp.get('name', emp_id)}  (score: {score_label})"
+        ):
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Experience", f"{emp.get('experience_years', '?')} yrs")
+            c2.metric("Availability", f"{emp.get('availability_pct', '?')}%")
+            c3.metric("Match Score", score_label)
+
+            if emp.get("skills"):
+                st.markdown(f"**Skills:** {emp.get('skills')}")
+
+            if ctx.get("error"):
+                st.caption(ctx["error"])
+                continue
+
+            st.markdown("---")
+            st.markdown("#### 💡 Why was this person selected?")
+
+            session_key = f"demo_explain_{project_id}_{role}"
+            if session_key not in st.session_state:
+                st.session_state[session_key] = None
+
+            if st.button("Generate Explanation",
+                         key=f"demo_btn_{project_id}_{role}"):
+                with st.spinner("Generating explanation..."):
+                    st.session_state[session_key] = generate_explanation(ctx)
+
+            if st.session_state[session_key]:
+                st.info(st.session_state[session_key])
+
+            st.markdown("---")
+            st.markdown("#### 🔍 Why not the runner-up?")
+
+            ru = ctx.get("runner_up")
+            if ru:
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown(f"**✅ Chosen: {emp.get('name', emp_id)}**")
+                    st.markdown(f"- Score: `{ctx['assigned']['score']:.4f}`")
+                    st.markdown(
+                        f"- Experience: {emp.get('experience_years', '?')} yrs")
+                    st.markdown(
+                        f"- Availability: {emp.get('availability_pct', '?')}%")
+                with col_b:
+                    direction = "higher" if ru["score_gap"] > 0 else "lower"
+                    st.markdown(f"**❌ Runner-up: {ru['name']}**")
+                    st.markdown(
+                        f"- Score: `{ru['score']:.4f}` ({direction} by "
+                        f"`{abs(ru['score_gap']):.4f}`)"
+                    )
+                    st.markdown(f"- Experience: {ru['experience_years']} yrs")
+                    st.markdown(f"- Availability: {ru['availability_pct']}%")
+
+                if ru["score_gap"] > 0:
+                    st.warning(
+                        f"⚠️ {ru['name']} scored higher for this specific "
+                        f"role ({ru['score']:.4f} vs "
+                        f"{ctx['assigned']['score']:.4f}) but was assigned "
+                        f"elsewhere by the optimizer to maximize the "
+                        f"overall team score across all selected projects."
+                    )
+                else:
+                    st.success(
+                        f"✅ {emp.get('name', emp_id)} outscored "
+                        f"{ru['name']} by {abs(ru['score_gap']):.4f} "
+                        f"points for this role."
+                    )
+            else:
+                st.caption("No runner-up data available.")
+
+    st.markdown("#### Full Candidate Pool")
+    st.caption(
+        "Top 10 eligible candidates per role, ranked by match score "
+        "(from score_matrix.csv, the same offline matrix Browse "
+        "Projects mode reads for premade projects)."
+    )
+    for role, role_df in candidate_pool.items():
+        assigned_id = demo_project_dict["assignments"].get(role)
+        pool = role_df[role_df["eligible"] == True] \
+            .head(10).reset_index(drop=True)  # noqa: E712
+        pool["rank"] = range(1, len(pool) + 1)
+        pool["assigned"] = pool["employee_id"].apply(
+            lambda eid: "✅" if eid == assigned_id else ""
+        )
+        with st.expander(f"**{role}** — top 10 candidates"):
+            st.dataframe(
+                pool[["rank", "assigned", "name",
+                      "employee_id", "final_score"]],
+                width="stretch",
+                hide_index=True,
+            )
 
 # ── Mode: Create Project ─────────────────────────────────────────────
 #
@@ -710,45 +955,44 @@ if mode == "Add Employee":
                 st.session_state.pop("employee_draft", None)
                 st.rerun()
 
-# ── Mode: Simulate ────────────────────────────────────────────────
+# ── Mode: 🎬 Demo Mode ────────────────────────────────────────────
 #
-# Item 25 -- lets you stage the 6 curated, deliberately-contentious
-# premade projects (P002/P003/P008/P017/P019/P024 -- all "critical"
-# priority, all wanting Backend Dev/Android Dev/Data Engineer against
-# an overlapping Python-or-Swift/Android-or-iOS/SQL/AWS skill pool, so
-# they genuinely compete for the same people) into one or more solve
-# batches instead of all-at-once, to make the cost of staggered/
-# reactive staffing visible against the jointly-optimal baseline.
+# Replaces item 25's "Simulate" mode entirely (product decision --
+# see v3 planning). Same underlying mechanism (StaffingOptimizer
+# against score_matrix.csv, session-only results, never touches
+# staffing_plan.csv or any file on disk) but generalized from the 6
+# curated contentious projects to all 30 premade projects, picked on
+# demand instead of pre-curated, plus a real "End Project" action
+# (un-staff, free the employees) that Simulate never had -- Simulate
+# only ever grew its busy-set, it couldn't shrink it.
 #
-# Deliberately scoped to the premade pool only (StaffingOptimizer
-# reads score_matrix.csv directly, same as the rest of Phase 1-3) --
-# custom (C0xx) projects and CE0xx employees are Phase 4/6a's
-# adhoc-matching path, a different mechanism (live re-scoring vs a
-# precomputed matrix); mixing the two here is future scope, not part
-# of this item.
+# Deliberately still scoped to the premade pool only, same reasoning
+# as old Simulate: StaffingOptimizer reads score_matrix.csv directly,
+# a different mechanism from the live ad-hoc matching custom (C0xx)
+# projects use. Mixing the two is future scope.
+#
+# demo_staffed: {project_id: [{"role","employee_id","final_score"}, ...]}
+# is the single source of truth here -- who's "busy" in Demo Mode is
+# derived from it fresh every render (demo_busy_ids() below), so
+# End Project freeing someone is just deleting their project's entry,
+# not bookkeeping a separate ever-growing busy set.
 
-if mode == "Simulate":
+if mode == "🎬 Demo Mode":
 
-    CURATED_PROJECT_IDS = ["P002", "P003", "P008", "P017", "P019", "P024"]
+    ALL_DEMO_PROJECT_IDS = sorted(projects_df.index.tolist())
 
-    st.title("🧪 Simulate — Staggered vs Joint-Optimal Staffing")
+    st.title("🎬 Demo Mode")
     st.caption(
-        "These 6 premade projects all want Backend Dev / Android Dev / "
-        "Data Engineer against an overlapping skill pool -- they "
-        "genuinely compete for the same people. Stage them into one or "
-        "more batches below and see how the total match score compares "
-        "to solving them all at once."
+        "Live-solve any of the 30 premade projects against the demo "
+        "roster and see the assigned team, explanations, and runner-up "
+        "comparisons -- same engine as Create Project, just against the "
+        "built-in dataset instead of your own. Everything here is "
+        "session-only; **End Project** un-staffs a project and frees its "
+        "people for another run."
     )
 
-    # ── Session state (item 25 spec) ────────────────────────────────
-    if "sim_busy_ids" not in st.session_state:
-        st.session_state.sim_busy_ids = set()
-    if "sim_results" not in st.session_state:
-        st.session_state.sim_results = []
-    if "sim_staffed_project_ids" not in st.session_state:
-        st.session_state.sim_staffed_project_ids = set()
-    if "sim_batch_number" not in st.session_state:
-        st.session_state.sim_batch_number = 0
+    if "demo_staffed" not in st.session_state:
+        st.session_state.demo_staffed = {}
 
     def new_optimizer():
         # Fresh CP-SAT model per call is required -- a solved model
@@ -760,146 +1004,116 @@ if mode == "Simulate":
             employees_path=str(BASE / "employees_with_index.csv"),
         )
 
-    remaining_ids = [pid for pid in CURATED_PROJECT_IDS
-                      if pid not in st.session_state.sim_staffed_project_ids]
+    def demo_busy_ids() -> set:
+        busy = set()
+        for rows in st.session_state.demo_staffed.values():
+            busy.update(r["employee_id"] for r in rows)
+        return busy
 
-    # ── Benchmark: computed once, lazily, cached ────────────────────
-    # "Lazily" here means once-ever-then-cached, not recomputed on
-    # every rerun -- not gated behind an extra manual click, since the
-    # running-total comparison is only useful once this exists anyway.
-    if "sim_benchmark_total" not in st.session_state:
-        with st.spinner("Computing joint-optimal benchmark "
-                         "(solving all 6 together)..."):
-            bench_opt = new_optimizer()
-            bench_opt.build(projects_to_staff=CURATED_PROJECT_IDS,
-                             exclude_ids=None)
-            bench_result = bench_opt.solve(time_limit_sec=30)
-            st.session_state.sim_benchmark_total = \
-                float(bench_result["final_score"].sum()) \
-                if not bench_result.empty else 0.0
+    def demo_project_label(pid: str) -> str:
+        name = all_projects_df.loc[pid, "project_name"] \
+            if pid in all_projects_df.index else pid
+        return f"{pid} — {name}"
 
-    running_total = sum(r["final_score"] for r in st.session_state.sim_results)
-    b1, b2 = st.columns(2)
-    b1.metric("Your total", f"{running_total:.4f}")
-    b2.metric("Jointly optimal", f"{st.session_state.sim_benchmark_total:.4f}")
-    if st.session_state.sim_results and \
-       running_total < st.session_state.sim_benchmark_total - 1e-6:
-        st.caption(
-            f"Staggering these batches cost "
-            f"{st.session_state.sim_benchmark_total - running_total:.4f} "
-            f"points of total match quality vs solving all 6 at once."
+    runnable_ids = [pid for pid in ALL_DEMO_PROJECT_IDS
+                     if pid not in st.session_state.demo_staffed]
+
+    # ── Run projects ─────────────────────────────────────────────
+    st.subheader("Run projects")
+
+    if not runnable_ids:
+        st.success(
+            "All 30 premade projects are currently staffed in Demo "
+            "Mode. End one below to free it up for another run."
+        )
+    else:
+        picked = st.multiselect(
+            "Select project(s) to solve -- one or many at once",
+            runnable_ids,
+            format_func=demo_project_label,
+            key="demo_pick",
         )
 
-    st.markdown("---")
-
-    # ── Checkbox list of remaining (unstaffed) curated projects ────
-    if not remaining_ids:
-        st.success("All 6 projects staffed. Reset below to run again.")
-    else:
-        st.subheader("Select projects for this batch")
-        checked_ids = []
-        for pid in remaining_ids:
-            proj = all_projects_df.loc[pid] if pid in all_projects_df.index \
-                   else pd.Series()
-            label = (
-                f"**{pid}** — {proj.get('project_name', pid)}  \n"
-                f"Roles: {proj.get('required_roles', '?')} · "
-                f"Skills: {proj.get('required_skills', '?')}"
-            )
-            if st.checkbox(label, key=f"sim_chk_{pid}"):
-                checked_ids.append(pid)
-
-        if st.button("▶️ Run Selected", disabled=not checked_ids):
-            with st.spinner(f"Solving {len(checked_ids)} project(s), "
-                             f"excluding {len(st.session_state.sim_busy_ids)} "
-                             f"already-busy employee(s)..."):
+        if st.button("▶️ Run Selected", disabled=not picked):
+            busy_now = get_busy_employee_ids(plan) | demo_busy_ids()
+            with st.spinner(
+                f"Solving {len(picked)} project(s), excluding "
+                f"{len(busy_now)} already-busy employee(s)..."
+            ):
                 opt = new_optimizer()
-                opt.build(projects_to_staff=checked_ids,
-                          exclude_ids=st.session_state.sim_busy_ids)
+                opt.build(projects_to_staff=picked, exclude_ids=busy_now)
                 result = opt.solve(time_limit_sec=30)
 
-            st.session_state.sim_batch_number += 1
-            batch_n = st.session_state.sim_batch_number
-
             if result.empty:
-                # Item 25 spec -- handle INFEASIBLE/empty the same
-                # honest way staff_custom_project() already does: show
-                # which role(s) had zero eligible candidates left,
-                # rather than a bare "nothing happened". Note this is
-                # genuinely all-or-nothing: CP-SAT (via the item 24
-                # contradiction marker) fails the WHOLE batch the
-                # moment even one role-slot has zero candidates left --
-                # any other project in this same batch that would
-                # otherwise have solved fine gets nothing too.
+                # Same honest all-or-nothing behavior old Simulate had --
+                # CP-SAT fails the whole batch the moment one role-slot
+                # has zero candidates left, even if other projects in
+                # this same selection would otherwise have solved fine.
                 if opt.unstaffable_by_exclusion:
                     slots = ", ".join(f"{pid}/{role}" for pid, role
                                        in opt.unstaffable_by_exclusion)
                     st.error(
-                        f"Batch {batch_n} could not be staffed at all -- "
-                        f"zero eligible candidates left (everyone eligible "
-                        f"was already assigned in an earlier batch) for: "
-                        f"{slots}. This blocks the entire batch, even any "
-                        f"other project selected here that would "
-                        f"otherwise have solved fine -- try running this "
-                        f"batch with fewer projects selected at once."
+                        f"Could not staff this selection -- zero "
+                        f"eligible candidates left for: {slots}. Try "
+                        f"fewer projects at once, or End an "
+                        f"already-staffed demo project to free up "
+                        f"people."
                     )
                 else:
                     st.error(
-                        f"Batch {batch_n} produced no feasible assignment "
-                        f"for the selected project(s) -- try a different "
-                        f"combination or check project requirements."
+                        "No feasible assignment for the selected "
+                        "project(s) -- try a different combination."
                     )
-                # Deliberately NOT added to sim_staffed_project_ids --
-                # nothing was actually staffed, so these must stay
-                # selectable for a retry with a smaller combination
-                # (per the message above). Marking them staffed here
-                # would make that advice impossible to follow.
             else:
-                for _, row in result.iterrows():
-                    st.session_state.sim_results.append({
-                        "project_id":  row["project_id"],
-                        "role":        row["role"],
-                        "employee_id": row["employee_id"],
-                        "final_score": float(row["final_score"]),
-                        "batch_number": batch_n,
-                    })
-                st.session_state.sim_busy_ids |= set(result["employee_id"])
-                st.session_state.sim_staffed_project_ids |= set(checked_ids)
-                st.success(f"Batch {batch_n}: staffed {len(result)} role(s).")
+                for pid in picked:
+                    rows = result[result.project_id == pid]
+                    if not rows.empty:
+                        st.session_state.demo_staffed[pid] = [
+                            {
+                                "role":        r["role"],
+                                "employee_id": r["employee_id"],
+                                "final_score": float(r["final_score"]),
+                            }
+                            for _, r in rows.iterrows()
+                        ]
+                st.success(
+                    f"Staffed {len(result)} role(s) across "
+                    f"{result['project_id'].nunique()} project(s)."
+                )
             st.rerun()
 
-    # ── Results so far, grouped by batch ────────────────────────────
-    if st.session_state.sim_results:
-        st.markdown("---")
-        st.subheader("Results so far")
-        results_df = pd.DataFrame(st.session_state.sim_results)
-        results_df["name"] = results_df["employee_id"].map(
-            lambda eid: employees.loc[eid, "name"]
-            if eid in employees.index else eid
-        )
-        for batch_n in sorted(results_df["batch_number"].unique()):
-            batch_df = results_df[results_df["batch_number"] == batch_n]
-            st.markdown(f"**Batch {batch_n}** "
-                        f"(score: {batch_df['final_score'].sum():.4f})")
-            st.dataframe(
-                batch_df[["project_id", "role", "name", "final_score"]]
-                .rename(columns={"final_score": "score"})
-                .reset_index(drop=True),
-                use_container_width=True,
-            )
-
     st.markdown("---")
-    if st.button("🔄 Reset Simulation"):
-        # Item 25 spec -- clears busy/results/staffed state, leaves
-        # sim_benchmark_total cached since it doesn't depend on user
-        # choices (same 6 projects, same untouched pool every time).
-        st.session_state.sim_busy_ids = set()
-        st.session_state.sim_results = []
-        st.session_state.sim_staffed_project_ids = set()
-        st.session_state.sim_batch_number = 0
-        for pid in CURATED_PROJECT_IDS:
-            st.session_state.pop(f"sim_chk_{pid}", None)
-        st.rerun()
+
+    # ── View / manage staffed demo projects ─────────────────────────
+    st.subheader("Staffed demo projects")
+
+    if not st.session_state.demo_staffed:
+        st.caption("Nothing staffed yet -- pick project(s) above and run them.")
+    else:
+        staffed_ids = sorted(st.session_state.demo_staffed.keys())
+
+        top_l, top_r = st.columns([3, 1])
+        with top_l:
+            view_pid = st.selectbox(
+                "View project",
+                staffed_ids,
+                format_func=demo_project_label,
+                key="demo_view_select",
+            )
+        with top_r:
+            st.markdown("<div style='height:28px'></div>",
+                        unsafe_allow_html=True)
+            if st.button(f"🛑 End {view_pid}", key=f"demo_end_{view_pid}"):
+                del st.session_state.demo_staffed[view_pid]
+                st.rerun()
+
+        st.caption(
+            f"{len(staffed_ids)} project(s) currently staffed in Demo "
+            f"Mode, holding {len(demo_busy_ids())} employee(s)."
+        )
+        st.markdown("---")
+
+        render_demo_project(view_pid)
 
 # ── Mode: Browse Projects ────────────────────────────────────────────
 
@@ -923,6 +1137,20 @@ if mode == "Browse Projects":
         # project_plan) doesn't need two separate code paths.
         custom_record = get_project_by_id(selected_project)
         assignments = (custom_record or {}).get("assignments", {})
+
+        if assignments:
+            # Mirrors Demo Mode's End Project -- un-staff and free the
+            # employees for another project. update_project_assignments()
+            # with {} is already the exact primitive this needs; no new
+            # store function required.
+            if st.button(
+                f"🛑 End Project — un-staff and free "
+                f"{len(assignments)} employee(s)",
+                key=f"end_custom_{selected_project}",
+            ):
+                update_project_assignments(selected_project, {})
+                st.rerun()
+
         project_plan = pd.DataFrame(
             [
                 {
