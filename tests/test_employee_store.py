@@ -114,6 +114,25 @@ class TestLoadAllEmployees:
         assert list(real_roster.columns) == original_cols
         assert len(real_roster) == original_len
 
+    def test_dedupes_when_custom_employee_shares_an_id_with_the_real_roster(self, real_roster):
+        # Regression test: scripts/migrate_demo_roster_to_user.py
+        # intentionally saves custom employees using the SAME
+        # employee_id as their real-roster row (e.g. "E001"). Without
+        # deduping, .loc["E001"] would return a 2-row DataFrame
+        # instead of a Series everywhere in the app.
+        real_id = real_roster.index[0]
+        record = _sample_record("Migrated Copy")
+        record["employee_id"] = real_id
+        save_employee(record)
+
+        merged = load_all_employees(real_roster)
+        assert len(merged) == len(real_roster)  # not +1
+        assert not merged.index.duplicated().any()
+        row = merged.loc[real_id]
+        assert isinstance(row, pd.Series)
+        # the custom/owned row wins over the original CSV row
+        assert row["name"] == "Migrated Copy"
+
 
 class TestListCustomEmployees:
     def test_empty_by_default(self):

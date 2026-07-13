@@ -196,11 +196,24 @@ def load_all_employees(employees_df: pd.DataFrame) -> pd.DataFrame:
     Note: for custom (C0xx) *project* matching, dashboard.py uses
     load_own_employees() instead -- see that function's docstring for
     why the demo CSV roster is deliberately excluded there.
+
+    Deduplicates on employee_id, keeping the custom/owned row when an
+    id exists in both -- this is what makes scripts/
+    migrate_demo_roster_to_user.py safe to run. Without this, a
+    migrated user ends up with two rows for "E001" (one from the CSV,
+    one they now own), and every .loc["E001"] in the codebase silently
+    returns a 2-row DataFrame instead of a Series -- which still
+    "works" syntactically (.get() exists on both), but produces
+    garbage output (pandas' repr of the mismatched slice, e.g.
+    "... Name: name, dtype: str") anywhere that value gets rendered,
+    and breaks any `if emp.get(...):` truthiness check outright
+    (ValueError: the truth value of a Series is ambiguous).
     """
     custom_df = _fetch_custom_employees_frame(employees_df)
     if custom_df is None:
         return employees_df
-    return pd.concat([employees_df, custom_df])
+    merged = pd.concat([employees_df, custom_df])
+    return merged[~merged.index.duplicated(keep="last")]
 
 
 def load_own_employees(employees_df: pd.DataFrame) -> pd.DataFrame:

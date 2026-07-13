@@ -257,7 +257,7 @@ def _confirm_end_project(project_id: str, project_name: str, n_assigned: int):
     if c1.button("🛑 End Project", type="primary", width="stretch"):
         delete_project(project_id)
         st.session_state["_project_ended_notice"] = project_name
-        st.session_state["_pending_mode"] = "Browse Projects"
+        st.session_state["_pending_mode"] = "📂 Browse Projects"
         st.session_state.pop("_pending_project_select", None)
         st.rerun()
     if c2.button("Cancel", width="stretch"):
@@ -326,8 +326,8 @@ if "_pending_mode" in st.session_state:
 
 mode = st.sidebar.radio(
     "Mode",
-    ["🎬 Demo Mode", "Browse Projects", "Create Project",
-     "👥 My Employees", "Add Employee"],
+    ["🎬 Demo Mode", "📂 Browse Projects", "➕ Create Project",
+     "👥 My Employees", "🧑‍💻 Add Employee"],
     key="app_mode",
 )
 
@@ -355,7 +355,7 @@ NEW_PROJECT_SENTINEL = "__new_project__"
 selected_project = None
 is_custom_project = False
 
-if mode == "Browse Projects":
+if mode == "📂 Browse Projects":
     # Promote a pending post-creation selection (see the st.rerun()
     # call in Create Project mode below) into the selectbox's own
     # bound key -- must happen here, before the selectbox is
@@ -398,7 +398,7 @@ if mode == "Browse Projects":
         # next run before those widgets exist yet.
         fallback = project_ids[0] if project_ids else NEW_PROJECT_SENTINEL
         st.session_state["_pending_project_select"] = fallback
-        st.session_state["_pending_mode"] = "Create Project"
+        st.session_state["_pending_mode"] = "➕ Create Project"
         st.rerun()
 
     # Always true in practice now (project_ids is custom-only), kept
@@ -664,7 +664,7 @@ def render_demo_project(project_id: str):
 # capacity pre-check is a warning, not a hard block on submission --
 # the failure message after a failed solve already explains why.)
 
-if mode == "Create Project":
+if mode == "➕ Create Project":
     st.title("➕ Create New Project")
     st.caption(
         "Stage a new project and auto-staff it from **your own saved "
@@ -833,7 +833,7 @@ if mode == "Create Project":
                 # top of the next run promotes them before those
                 # widgets are instantiated, where it's legal.
                 st.session_state["_pending_project_select"] = pid
-                st.session_state["_pending_mode"] = "Browse Projects"
+                st.session_state["_pending_mode"] = "📂 Browse Projects"
                 st.rerun()
 
 # ── Mode: 👥 My Employees ─────────────────────────────────────────────
@@ -968,7 +968,7 @@ if mode == "👥 My Employees":
 # call per premade project, a bigger architectural change than "swap
 # the call site," and not what this item's plan describes.
 
-if mode == "Add Employee":
+if mode == "🧑‍💻 Add Employee":
     st.title("👤 Add Employee")
     st.caption(
         "Add a candidate via resume upload or a manual form. Both "
@@ -1357,7 +1357,7 @@ if mode == "🎬 Demo Mode":
 
 # ── Mode: Browse Projects ────────────────────────────────────────────
 
-if mode == "Browse Projects":
+if mode == "📂 Browse Projects":
 
     proj = all_projects_df.loc[selected_project] \
         if selected_project in all_projects_df.index else pd.Series()
