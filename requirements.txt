@@ -10,6 +10,7 @@ ortools
 requests
 scikit-learn
 streamlit>=1.37  # st.dialog (stable) used by the delete/end-project confirmation popups
+streamlit-cookies-controller  # item 27 -- remember-me session persistence
 shap
 python-dotenv
 supabase
