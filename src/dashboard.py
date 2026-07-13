@@ -1674,9 +1674,18 @@ if mode == "📂 Browse Projects":
                 assigned_id = assigned_rows.iloc[0]["employee_id"] \
                     if not assigned_rows.empty else None
 
-                pool = role_df.sort_values(
-                    "final_score", ascending=False
-                ).reset_index(drop=True)
+                # role_df from match_adhoc() scores EVERY employee
+                # against this role's query text (semantic similarity
+                # can rank someone with a different job title highly),
+                # which is correct for the solver's purposes but not
+                # for a human-facing "candidates for this role" list.
+                # Filter down to (a) this employee's own job title
+                # actually matching the role, and (b) eligible (passed
+                # the availability/experience thresholds) -- otherwise
+                # every role's pool shows all of own_employees_df.
+                pool = role_df[
+                    (role_df["role"] == role) & (role_df["eligible"] == True)  # noqa: E712
+                ].sort_values("final_score", ascending=False).reset_index(drop=True)
                 pool["rank"] = range(1, len(pool) + 1)
                 pool["assigned"] = pool["employee_id"].apply(
                     lambda eid: "✅" if eid == assigned_id else ""
@@ -1686,7 +1695,14 @@ if mode == "📂 Browse Projects":
                         ["rank", "assigned", "name", "employee_id", "final_score"]
                         if c in pool.columns]
                 with st.expander(f"**{role}** — {len(pool)} candidate(s)"):
-                    st.dataframe(pool[cols], width="stretch", hide_index=True)
+                    if pool.empty:
+                        st.caption(
+                            f"No one in your employee list has job "
+                            f"title \"{role}\" and meets this "
+                            f"project's availability/experience bar."
+                        )
+                    else:
+                        st.dataframe(pool[cols], width="stretch", hide_index=True)
     else:
         st.caption(
             "Top 10 eligible candidates per role, ranked by match "
