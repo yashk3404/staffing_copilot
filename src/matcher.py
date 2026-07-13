@@ -34,6 +34,20 @@ class Matcher:
     W_AVAILABILITY = 0.20
     W_EXPERIENCE   = 0.10
 
+    # Columns every match()/match_adhoc() result row has -- named
+    # explicitly so an empty result (zero eligible/candidate rows,
+    # e.g. a brand-new user's own_employees_df) still comes back as a
+    # DataFrame with these columns instead of a bare columnless one.
+    # A columnless empty frame breaks two real callers: solve_ad_hoc_
+    # project()'s `df["eligible"] == True` (KeyError) and this same
+    # method's own `.sort_values("final_score")` a few lines below.
+    _RESULT_COLUMNS = [
+        "employee_id", "name", "role", "experience_years",
+        "availability_pct", "cost_band", "skills", "semantic_score",
+        "availability_factor", "experience_factor", "skill_overlap",
+        "final_score", "eligible",
+    ]
+
     def __init__(self):
         print("  Loading Matcher...")
         self.model    = SentenceTransformer(self.MODEL_NAME)
@@ -126,6 +140,15 @@ class Matcher:
         against a model that's already loaded.
         """
         rows = list(employees_df.iterrows())
+        if not rows:
+            # A user with no employees of their own yet (own_employees_df
+            # from load_own_employees()) reaches this with a genuinely
+            # empty frame -- np.vstack([]) raises ValueError ("need at
+            # least one array to concatenate"), so short-circuit with a
+            # correctly-shaped (0, dim) matrix instead of ever calling it.
+            dim = self.emp_emb.shape[1]
+            return np.empty((0, dim))
+
         vectors = [None] * len(rows)
         to_embed_positions = []
         to_embed_texts = []
@@ -216,7 +239,12 @@ class Matcher:
         df = self._normalize_emp_df(employees_df) \
             if employees_df is not None else self.emp_df
         emb_matrix = self._get_embedding_matrix(df)
-        sem_scores = cosine_similarity(query_vec, emb_matrix)[0]
+        sem_scores = (
+            cosine_similarity(query_vec, emb_matrix)[0]
+            if len(df) else np.array([])
+        )  # sklearn's cosine_similarity hard-requires >=1 sample --
+           # an empty df (e.g. a new user's own_employees_df) means
+           # there's nothing to score, so skip straight to empty.
 
         rows = []
         for pos, (_, emp) in enumerate(df.iterrows()):
@@ -261,7 +289,7 @@ class Matcher:
             })
 
         result_df = (
-            pd.DataFrame(rows)
+            pd.DataFrame(rows, columns=self._RESULT_COLUMNS)
             .sort_values("final_score", ascending=False)
             .reset_index(drop=True)
         )
@@ -363,7 +391,12 @@ class Matcher:
         df = self._normalize_emp_df(employees_df) \
             if employees_df is not None else self.emp_df
         emb_matrix = self._get_embedding_matrix(df)
-        sem_scores = cosine_similarity(query_vec, emb_matrix)[0]
+        sem_scores = (
+            cosine_similarity(query_vec, emb_matrix)[0]
+            if len(df) else np.array([])
+        )  # sklearn's cosine_similarity hard-requires >=1 sample --
+           # an empty df (e.g. a new user's own_employees_df) means
+           # there's nothing to score, so skip straight to empty.
 
         rows = []
         for pos, (_, emp) in enumerate(df.iterrows()):
@@ -409,7 +442,7 @@ class Matcher:
             })
 
         result_df = (
-            pd.DataFrame(rows)
+            pd.DataFrame(rows, columns=self._RESULT_COLUMNS)
             .sort_values("final_score", ascending=False)
             .reset_index(drop=True)
         )

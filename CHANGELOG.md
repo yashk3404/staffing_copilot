@@ -1,5 +1,33 @@
 # Changelog
 
+## [v3-wip] Item 25 -- matcher/optimizer wiring verified + hardened
+
+### Added
+- **`tests/test_multi_user_id_scoping.py`** (was an empty stub) --
+  automates the roadmap's item 25 manual-verification exit criterion
+  end to end through the real Matcher/optimizer, against
+  `tests/fake_supabase.py`: a plant employee is a real scored
+  candidate in its owner's own custom-project solve, and is invisible
+  to a second user's own pool, merged pool, and solve/candidate-pool
+  results.
+
+### Fixed
+- **`src/matcher.py`** -- `_get_embedding_matrix()` crashed
+  (`np.vstack([])`) on a genuinely empty `employees_df`, and
+  `match()`/`match_adhoc()` crashed separately building an empty
+  result (`pd.DataFrame([]).sort_values("final_score")` -- a
+  columnless frame has no such column to sort by). Reachable in
+  production any time a role's candidate pool is empty -- e.g. a
+  fresh user's `own_employees_df` -- not just in this new test.
+  `dashboard.py`'s two call sites happened to guard on
+  `own_employees_df.empty` already, so the crash wasn't user-facing
+  yet, but the underlying functions themselves are now robust
+  regardless of caller.
+- **`tests/fake_supabase.py`** -- `_FakeTable`/`_FakeQuery` had no
+  `.update()`, so any test touching `save_candidate_pool()` (which
+  calls `.update()` on the `projects` table) errored out. Added,
+  mirroring the existing `insert`/`upsert`/`delete` pattern.
+
 ## [v3-wip] Pre-item-25 UI pass -- own-employee-only custom projects
 
 ### Changed

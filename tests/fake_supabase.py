@@ -51,6 +51,11 @@ class _FakeQuery:
         self._op = "delete"
         return self
 
+    def update(self, row):
+        self._op = "update"
+        self._payload = row
+        return self
+
     def eq(self, col, val):
         self._filters[col] = val
         return self
@@ -129,6 +134,12 @@ class _FakeQuery:
                 store.remove(r)
             return types.SimpleNamespace(data=to_remove)
 
+        if self._op == "update":
+            to_update = [r for r in store if _matches(r, self._filters)]
+            for r in to_update:
+                r.update(self._payload)
+            return types.SimpleNamespace(data=[dict(r) for r in to_update])
+
         raise FakeQueryError(f"no operation set before execute() on {self._table.name}")
 
 
@@ -149,6 +160,9 @@ class _FakeTable:
 
     def delete(self):
         return _FakeQuery(self).delete()
+
+    def update(self, row):
+        return _FakeQuery(self).update(row)
 
 
 class FakeSupabaseClient:
