@@ -7,27 +7,27 @@ signature and return shape is unchanged from the session-state
 version -- callers (dashboard.py, matcher.match_adhoc(),
 get_busy_employee_ids()) needed zero edits.
 
-One deliberate scope note: save_candidate_pool()/get_candidate_pool()
-stay session-scoped, NOT moved to Supabase. The v3 roadmap's Option B
-only scoped employees/projects (and, as of item 23, their
-assignments) into Postgres -- there's no schema for the full ranked
-candidate pool (role -> DataFrame), and adding one wasn't part of
-item 21/23's design. Practical effect: runner-up comparisons /
-explanation context for a custom project still won't survive a
-browser refresh, same limitation item 22 already accepted for login
-itself. Worth a deliberate v4-ish follow-up if that turns out to
-matter, not a silent gap.
+Item 25-adjacent fix (migration 0003): save_candidate_pool()/
+get_candidate_pool() moved OFF st.session_state and into Postgres too
+-- assignments.final_score + projects.candidate_pool (jsonb). They
+used to be session-scoped on purpose (Option B's schema didn't cover
+them yet), which meant match scores, runner-up comparisons, and the
+Full Candidate Pool table all silently went blank on a refresh or a
+new session. Requires migration 0003 to be applied -- see that file's
+comment for exactly what it adds.
 
 Schema for the parts that ARE in Postgres:
     projects:    project_id, project_name, client, required_roles
                  (";"-sep), required_skills (";"-sep), min_experience,
-                 deadline_days, budget_band, priority
-    assignments: project_id, role, employee_id -- one row per
-                 (project_id, role); reconstructed into the
-                 {role: employee_id} dict shape callers expect.
+                 deadline_days, budget_band, priority,
+                 candidate_pool (jsonb, migration 0003)
+    assignments: project_id, role, employee_id, final_score (migration
+                 0003) -- one row per (project_id, role); reconstructed
+                 into the {role: employee_id} dict shape callers
+                 expect (scores are fetched separately via
+                 get_assignment_scores() to keep that shape unchanged).
 """
 
-import streamlit as st
 import pandas as pd
 
 from src.employee_store import _owner_id
@@ -108,13 +108,22 @@ def save_project(record: dict) -> str:
     return proj_id
 
 
-def update_project_assignments(project_id: str, assignments: dict) -> None:
+def update_project_assignments(project_id: str, assignments: dict,
+                                scores: dict = None) -> None:
     """
     Writes {role: employee_id} as rows in the assignments table, after
     the mini-solver picks a final staffing plan for a custom project.
     Replaces (delete then insert) rather than upserts per-role, so a
     re-solve that drops a role doesn't leave a stale assignment
     behind.
+
+    scores: optional {role: final_score} (migration 0003) -- written
+    alongside each row so Role Details' "score: X" and the Assigned
+    Team cards can read a real number straight off the assignment
+    itself, without needing get_candidate_pool() (which may be None
+    for a project solved before migration 0003, or never re-solved
+    since). None (the default) leaves final_score null, same as
+    before this param existed.
 
     No-op if project_id isn't a known project owned by this user --
     same silent-no-op contract the session-state version had. This is
@@ -124,6 +133,7 @@ def update_project_assignments(project_id: str, assignments: dict) -> None:
     """
     supabase = get_supabase_client()
     owner_id = _owner_id()
+    scores = scores or {}
 
     exists = (
         supabase.table("projects")
@@ -147,10 +157,35 @@ def update_project_assignments(project_id: str, assignments: dict) -> None:
                 "role": role,
                 "employee_id": emp_id,
                 "owner_id": owner_id,
+                "final_score": scores.get(role),
             }
             for role, emp_id in assignments.items()
         ]
         supabase.table("assignments").insert(rows).execute()
+
+
+def get_assignment_scores(project_id: str) -> dict:
+    """
+    {role: final_score} for one of this user's custom projects
+    (migration 0003). Kept separate from get_project_by_id()'s
+    "assignments" dict (which stays {role: employee_id}, unchanged
+    shape) rather than folding scores in there, since several call
+    sites already destructure assignments.items() as (role, emp_id)
+    pairs -- changing that shape would've meant touching every one of
+    them for a purely additive feature. Missing/null scores (an
+    assignment written before migration 0003, or via a scores=None
+    call) come back as None for that role, not KeyError.
+    """
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+    result = (
+        supabase.table("assignments")
+        .select("role, final_score")
+        .eq("project_id", project_id)
+        .eq("owner_id", owner_id)
+        .execute()
+    )
+    return {row["role"]: row.get("final_score") for row in result.data}
 
 
 def delete_project(project_id: str) -> None:
@@ -185,24 +220,61 @@ def delete_project(project_id: str) -> None:
 
 def save_candidate_pool(project_id: str, role_scores: dict) -> None:
     """
-    Session-scoped, deliberately not moved to Supabase -- see the
-    module docstring. Persists the full per-role candidate pool
-    (role -> DataFrame) alongside a custom project's final assignment,
-    so retrieve_adhoc() can reconstruct runner-up comparisons and LLM
-    explanations after the fact within the same session.
+    Persists the full per-role candidate pool (role -> DataFrame) to
+    Postgres (projects.candidate_pool, migration 0003) so runner-up
+    comparisons and LLM explanations for a custom project survive a
+    refresh or a brand new session, not just the request that solved
+    it.
+
+    Stores a trimmed column set per candidate rather than every
+    intermediate scoring feature (semantic_score, availability_factor,
+    etc.), to keep the JSON payload small -- exactly the columns
+    retrieve_context.retrieve_adhoc() and dashboard.py's Full
+    Candidate Pool table actually read: employee_id, name, role,
+    experience_years, availability_pct, skills, final_score, eligible.
+
+    No-op (raises nothing, writes nothing) if project_id isn't a known
+    project owned by this user -- the update's .eq() filters simply
+    match zero rows, same silent-no-op contract every other write in
+    this module already has.
     """
-    if "custom_candidate_pools" not in st.session_state:
-        st.session_state.custom_candidate_pools = {}
-    st.session_state.custom_candidate_pools[project_id] = role_scores
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
+    keep_cols = ["employee_id", "name", "role", "experience_years",
+                 "availability_pct", "skills", "final_score", "eligible"]
+    payload = {
+        role: df[[c for c in keep_cols if c in df.columns]].to_dict("records")
+        for role, df in role_scores.items()
+    }
+    supabase.table("projects").update(
+        {"candidate_pool": payload}
+    ).eq("project_id", project_id).eq("owner_id", owner_id).execute()
 
 
-def get_candidate_pool(project_id: str) -> dict | None:
-    """Read side of save_candidate_pool(). Returns None if this
-    project was never solved this session -- callers (dashboard.py)
-    need to handle that gracefully."""
-    if "custom_candidate_pools" not in st.session_state:
-        st.session_state.custom_candidate_pools = {}
-    return st.session_state.custom_candidate_pools.get(project_id)
+def get_candidate_pool(project_id: str):
+    """
+    Read side of save_candidate_pool(). Returns None if this project
+    was never solved, was created/solved before migration 0003 landed,
+    or doesn't belong to this user -- callers (dashboard.py,
+    retrieve_context.py) already handle a None pool gracefully.
+    """
+    supabase = get_supabase_client()
+    owner_id = _owner_id()
+
+    result = (
+        supabase.table("projects")
+        .select("candidate_pool")
+        .eq("project_id", project_id)
+        .eq("owner_id", owner_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data or not result.data[0].get("candidate_pool"):
+        return None
+
+    raw = result.data[0]["candidate_pool"]
+    return {role: pd.DataFrame(records) for role, records in raw.items()}
 
 
 def get_project_by_id(project_id: str,

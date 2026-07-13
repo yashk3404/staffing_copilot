@@ -42,6 +42,7 @@ from src.project_store import (
     get_busy_employee_ids,
     list_custom_projects,
     delete_project,
+    get_assignment_scores,
 )
 from src.optimize_staffing import staff_custom_project, StaffingOptimizer
 from src.employee_store import (
@@ -1378,33 +1379,78 @@ if mode == "📂 Browse Projects":
         custom_record = get_project_by_id(selected_project)
         assignments = (custom_record or {}).get("assignments", {})
 
-        # v3 UI update: "End Project" now fully removes the project
-        # (via delete_project(), not just clearing assignments) and
-        # confirms first -- see the _confirm_end_project /
-        # _project_ended_popup dialogs defined near the top of this
-        # file. Available for any custom project, staffed or not, so
-        # an unstaffed one can be cleaned up too, not just a staffed
-        # one.
-        if st.button(
-            f"🛑 End Project"
-            + (f" — un-staff {len(assignments)} employee(s) and remove"
-               if assignments else " — remove from your project list"),
-            key=f"end_custom_{selected_project}",
-        ):
-            _confirm_end_project(
-                selected_project,
-                custom_record.get("project_name", selected_project)
-                if custom_record else selected_project,
-                len(assignments),
-            )
+        c_end, c_resolve = st.columns(2)
+        with c_end:
+            if st.button(
+                f"🛑 End Project"
+                + (f" — un-staff {len(assignments)}"
+                   if assignments else " — remove"),
+                key=f"end_custom_{selected_project}",
+                width="stretch",
+            ):
+                _confirm_end_project(
+                    selected_project,
+                    custom_record.get("project_name", selected_project)
+                    if custom_record else selected_project,
+                    len(assignments),
+                )
+        with c_resolve:
+            # Recovery action for exactly the case migration 0003's
+            # commit message flags: a project staffed before that
+            # migration (or before an employee was added/removed
+            # since) has no candidate_pool and/or null final_scores.
+            # Re-running the same solve own_employees_df goes through
+            # regenerates both -- no need to recreate the project from
+            # scratch just to get Role Details/runner-up/explanations
+            # working again.
+            if st.button(
+                "🔄 Re-solve", key=f"resolve_custom_{selected_project}",
+                width="stretch",
+                help="Re-run matching for this project against your "
+                     "current employee list -- fixes a missing "
+                     "candidate pool or match scores from before this "
+                     "project's last (re-)solve.",
+            ):
+                if own_employees_df.empty:
+                    st.error(
+                        "You have no employees saved -- add some "
+                        "first (or run the migration script)."
+                    )
+                elif custom_record is None:
+                    st.error("Project not found.")
+                else:
+                    matcher = load_matcher()
+                    with st.spinner("Re-matching and solving..."):
+                        result = staff_custom_project(
+                            custom_record, matcher, plan.iloc[0:0],
+                            employees_df=own_employees_df, verbose=False,
+                        )
+                    if result.empty:
+                        st.error(
+                            "❌ Re-solve failed -- at least one role "
+                            "has zero eligible candidates right now."
+                        )
+                    else:
+                        st.success("✅ Re-solved.")
+                        st.rerun()
 
+        # migration 0003 -- assignment scores are now persisted
+        # (assignments.final_score) instead of only ever living in the
+        # session-scoped candidate pool, so this no longer has to
+        # hardcode None here and rely on the Role Details section
+        # separately re-deriving a score from candidate_pool. A
+        # project's assignments written before 0003 (or via a caller
+        # that didn't pass scores=) still come back None per role --
+        # get_assignment_scores()'s documented contract, handled the
+        # same way missing values always were downstream.
+        assignment_scores = get_assignment_scores(selected_project)
         project_plan = pd.DataFrame(
             [
                 {
                     "project_id": selected_project,
                     "role": role,
                     "employee_id": emp_id,
-                    "final_score": None,
+                    "final_score": assignment_scores.get(role),
                 }
                 for role, emp_id in assignments.items()
             ],
@@ -1527,18 +1573,19 @@ if mode == "📂 Browse Projects":
         # reuse it for the Match Score metric AND the explanation/
         # runner-up sections below (was being fetched twice further
         # down before, and never at all before the stats render).
-        # row["final_score"] is always None for custom projects (they
-        # have no staffing_plan.csv row), so score_label above stays
-        # stuck at "—" for them unless it's overwritten here from
-        # ctx["assigned"]["score"], which is the actual solved score
-        # sitting in the candidate pool.
+        # Migration 0003: row["final_score"] is now a real persisted
+        # number for custom projects too (assignments.final_score),
+        # not always None -- this ctx re-derive is now mostly a
+        # fallback for assignments written before that migration, or
+        # by a caller that didn't pass scores= to
+        # update_project_assignments().
         ctx = None
         if is_custom_project:
             if candidate_pool is not None:
                 ctx = retriever.retrieve_adhoc(
                     selected_project, role, custom_record, candidate_pool
                 )
-                if not ctx.get("error"):
+                if not ctx.get("error") and not pd.notna(score):
                     score_label = f"{ctx['assigned']['score']:.4f}"
         else:
             ctx = retriever.retrieve(selected_project, role)

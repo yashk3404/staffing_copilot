@@ -388,7 +388,8 @@ def staff_custom_project(project: dict,
         return result_df
 
     assignments = dict(zip(result_df["role"], result_df["employee_id"]))
-    update_project_assignments(project["project_id"], assignments)
+    scores = dict(zip(result_df["role"], result_df["final_score"]))
+    update_project_assignments(project["project_id"], assignments, scores=scores)
 
     if verbose:
         print(f"   Project {project['project_id']} staffed and saved: "

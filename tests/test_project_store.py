@@ -14,7 +14,7 @@ from src.project_store import (
     save_project, update_project_assignments, get_project_by_id,
     load_all_projects, list_custom_projects, get_busy_employee_ids,
     get_capacity_summary, save_candidate_pool, get_candidate_pool,
-    delete_project,
+    delete_project, get_assignment_scores,
 )
 from src.employee_store import save_employee
 
@@ -83,6 +83,48 @@ class TestUpdateProjectAssignments:
 
     def test_noop_for_unknown_project(self):
         update_project_assignments("C999", {"Backend Dev": "E001"})  # must not raise
+
+    def test_scores_persist_and_are_readable(self):
+        # migration 0003 -- match scores used to only ever live in the
+        # session-scoped candidate pool; this is what makes "score: —"
+        # go away after a refresh/new session.
+        pid = save_project(_sample_project(required_roles="Backend Dev;Frontend Dev"))
+        update_project_assignments(
+            pid, {"Backend Dev": "E001", "Frontend Dev": "E002"},
+            scores={"Backend Dev": 0.8836, "Frontend Dev": 0.7473},
+        )
+        scores = get_assignment_scores(pid)
+        assert scores == {"Backend Dev": 0.8836, "Frontend Dev": 0.7473}
+
+    def test_scores_default_to_none_when_not_passed(self):
+        pid = save_project(_sample_project())
+        update_project_assignments(pid, {"Backend Dev": "E001"})
+        assert get_assignment_scores(pid) == {"Backend Dev": None}
+
+    def test_scores_missing_for_a_role_default_to_none(self):
+        pid = save_project(_sample_project(required_roles="Backend Dev;Frontend Dev"))
+        update_project_assignments(
+            pid, {"Backend Dev": "E001", "Frontend Dev": "E002"},
+            scores={"Backend Dev": 0.8836},  # Frontend Dev omitted
+        )
+        assert get_assignment_scores(pid) == {
+            "Backend Dev": 0.8836, "Frontend Dev": None,
+        }
+
+    def test_re_solve_replaces_old_scores(self):
+        pid = save_project(_sample_project())
+        update_project_assignments(pid, {"Backend Dev": "E001"}, scores={"Backend Dev": 0.5})
+        update_project_assignments(pid, {"Backend Dev": "E003"}, scores={"Backend Dev": 0.9})
+        assert get_assignment_scores(pid) == {"Backend Dev": 0.9}
+
+
+class TestGetAssignmentScores:
+    def test_unknown_project_returns_empty_dict(self):
+        assert get_assignment_scores("C_NEVER_EXISTED") == {}
+
+    def test_unstaffed_project_returns_empty_dict(self):
+        pid = save_project(_sample_project())
+        assert get_assignment_scores(pid) == {}
 
 
 class TestGetProjectById:
