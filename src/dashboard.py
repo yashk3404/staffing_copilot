@@ -692,9 +692,7 @@ if mode == "➕ Create Project":
         st.warning(
             "👥 You don't have any employees saved yet, so there's "
             "nothing to staff a project with. Head to **Add Employee** "
-            "to add people one at a time, or run "
-            "`scripts/migrate_demo_roster_to_user.py` once to import "
-            "the 80-person demo roster into your own account."
+            "to add people one at a time."
         )
     else:
         with st.expander(
