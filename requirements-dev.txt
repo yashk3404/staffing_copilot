@@ -1,0 +1,15 @@
+-r requirements.txt
+
+# Local-only: notebooks (01-14), SHAP plot generation (13_shap.ipynb
+# writes shap_summary.png / shap_importance.png that dashboard.py just
+# displays as static images -- shap/matplotlib/seaborn are never
+# imported by the deployed app itself), synthetic data generation,
+# and running the test suite.
+jupyter
+matplotlib
+seaborn
+shap
+faker
+pytest
+faiss-cpu   # only used by vector_store.py (06_vector_store.ipynb) -- dashboard.py never imports it
+groq        # the SDK package -- generate_explanation.py calls Groq's API via plain requests instead

@@ -358,7 +358,9 @@ def require_login() -> None:
             st.caption(f"Logged in as {st.session_state['user'].email}")
             if st.button("Log out"):
                 supabase.auth.sign_out()
-                _cookies().remove(REMEMBER_ME_COOKIE)
+                cookies = _cookies()
+                if cookies.get(REMEMBER_ME_COOKIE):
+                    cookies.remove(REMEMBER_ME_COOKIE)
                 for k in ("user", "session", "_password_recovery"):
                     st.session_state.pop(k, None)
                 st.rerun()
