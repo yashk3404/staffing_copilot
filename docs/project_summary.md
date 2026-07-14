@@ -10,9 +10,11 @@
 > record. For what's been built since — custom employee/project
 > intake, resume parsing, the merged matching pool, the expanded
 > test suite, live explanations and Simulate mode for custom
-> projects — see the "Post-Internship Extensions (v2.0)" and
-> "Post-v2.0 Extensions (v2.1)" sections at the end, and
-> [`../CHANGELOG.md`](../CHANGELOG.md) for the full history.
+> projects, and real accounts with Postgres persistence and
+> Row-Level Security — see the "Post-Internship Extensions (v2.0)",
+> "Post-v2.0 Extensions (v2.1)", and "Post-v2.1 Extensions (v3.0)"
+> sections at the end, and [`../CHANGELOG.md`](../CHANGELOG.md) for
+> the full history.
 
 ---
 
@@ -364,4 +366,121 @@ combination.
   still reads the offline `score_matrix.csv` only, out of scope for
   this phase.
 - Persistence is still `st.session_state`-only, same deferred
-  decision as v2.0.
+  decision as v2.0. **Closed in v3.0, below.**
+
+---
+
+## Post-v2.1 Extensions (v3.0)
+
+Everything below closes v2.1's biggest carried-over limitation:
+persistence was still `st.session_state`-only, so every custom
+employee and project vanished on refresh. v3.0 adds real accounts and
+moves that data into Supabase Postgres, with Row-Level Security as
+the actual security boundary rather than an app-side check. Full
+commit-level detail is in [`../CHANGELOG.md`](../CHANGELOG.md); the
+original item-by-item plan is in `../v3_roadmap.md`.
+
+### What was added
+
+- **Schema + Row-Level Security** — `employees`, `projects`,
+  `assignments` tables, each with a nullable `owner_id`: `NULL` means
+  shared demo data visible to every account, `owner_id = auth.uid()`
+  means private to that user. RLS policies enforce this at the
+  database level, not as a Streamlit-side `if` check the anon key
+  could bypass. Postgres `CHECK` constraints handle the input
+  validation Streamlit alone can't be trusted to enforce, since the
+  anon key is public.
+- **Login / signup / password reset / email confirmation**
+  (`src/auth.py`), backed by Supabase Auth (GoTrue) — password
+  hashing and rate-limiting handled server-side, not rolled by hand.
+  "Remember me" persists a session across a browser refresh via a
+  refresh-token cookie, closing item 22's original known gap. Login
+  and password-reset responses are deliberately generic/uniform
+  regardless of whether the account exists, to avoid leaking which
+  emails are registered.
+- **Store internals swapped to Supabase** — `employee_store.py` /
+  `project_store.py` now read/write Postgres instead of
+  `st.session_state`, with every function signature kept identical.
+  `dashboard.py`, `matcher.py`, and `optimize_staffing.py` needed
+  zero changes — this was the exact seam Phase 3 (v1.0) was built to
+  leave open, now actually exercised.
+- **Match scores and candidate pools moved into Postgres too** — a
+  `final_score` column on `assignments` and a `candidate_pool jsonb`
+  column on `projects`, so a custom project's runner-up detail and
+  Full Candidate Pool table now survive a refresh, not just the
+  employee/project records themselves.
+- **RLS boundary tested against a real Supabase project**, not
+  mocked — the one place a mock would have hidden the actual risk.
+  Two real test users confirm cross-user reads/writes fail, a spoofed
+  `owner_id` insert is rejected, and a regular user can't write a
+  `NULL`-owner ("demo") row.
+- **"🎬 Demo Mode"** replaces the old session-only "Simulate" mode,
+  explicitly scoped to the shared demo roster so it needs no account
+  and never touches a logged-in user's own data. **"👥 My Employees"**
+  adds search/filter/delete over a user's saved employees. "End
+  Project" now fully removes a project instead of only clearing its
+  assignments.
+- **Test suite** grown from 116 to 156 tests.
+
+### Design decisions specific to this phase
+
+**Option B: migrate only the custom layer, not the demo roster.** The
+80-employee/30-project synthetic dataset and its precomputed
+embeddings stay exactly as CSV/`.npy` files — a shared, read-only
+demo roster every account matches against. Only user-added records
+move into Postgres. This kept the tested embeddings pipeline
+completely out of the blast radius of a database migration, at the
+cost of two data sources instead of one (a real trade-off, not a free
+lunch — `load_all_employees()` / `load_own_employees()` are what
+absorb that complexity so no caller has to know about it).
+
+**A surrogate primary key, not a natural one.** The schema initially
+made `employee_id`/`project_id` (the app-facing `CE0xx`/`C0xx` ids)
+the sole primary key. RLS means each user only ever sees their own
+rows when computing "next id," so two different users would both
+independently land on `CE001` — a real multi-tenant bug that only
+shows up with more than one real account, which is exactly why
+item 24's real-project RLS test (not the mock) mattered. Fixed with a
+surrogate `uuid` primary key plus a composite `(id, owner_id)`
+uniqueness constraint instead.
+
+**`token_hash`, not Supabase's default confirmation-link shape.**
+Streamlit is server-rendered, so it can only ever read URL query
+params — never a `#fragment`, which never reaches the server at all.
+That rules out Supabase's implicit link shape outright, and its PKCE
+link shape (`?code=...`) needs a `code_verifier` stored client-side at
+send time, which a single shared `st.cache_resource` client serving
+every visitor on the process can't safely scope per-browser. Both
+email templates instead send `token_hash` + `type`, verified
+statelessly server-side via `auth.verify_otp()` — no local state to
+lose or collide on. See `src/auth.py`'s module docstring for the full
+reasoning.
+
+**CAPTCHA scoped, attempted three times, then deliberately dropped.**
+The original v3 roadmap called for CAPTCHA on login/signup. Every
+implementation attempt (reload+query-param, postMessage+`st.html`, a
+split visible/invisible-iframe version) hit the same structural wall:
+Streamlit runs third-party JS in a sandboxed iframe with no supported
+synchronous channel back to Python, so each workaround just relocated
+the same race condition. Rather than patch it a fourth time, CAPTCHA
+enforcement was turned off in Supabase's dashboard and Supabase's own
+built-in per-IP/per-email rate limiting is the bot-protection baseline
+for now — a deliberate, documented trade, not an oversight.
+
+### Known limitations carried into v3.0
+
+- The shared demo roster deliberately stays outside Postgres (Option
+  B, above) — a full migration (Option A) is a possible v4+ move.
+- Free-tier Supabase projects auto-pause after 7 days without API
+  traffic; no keep-alive cron job exists yet, so first load after a
+  long idle period may take a moment to resume.
+- Real CAPTCHA enforcement is scoped but not built (see above) — the
+  robust path, if revisited, is a separate top-level webpage hosting
+  Turnstile normally (not inside a Streamlit iframe), redirecting
+  back with a session token in the URL.
+- GitHub repo tracking (commits/PRs mapped to assigned employees),
+  scoped out of v3 from the start, remains deferred to v4 — it's a
+  different problem domain (GitHub OAuth, identity mapping, API rate
+  limits, and what "work done" should even measure) that needs its
+  own design pass rather than being rushed alongside the login
+  system.
