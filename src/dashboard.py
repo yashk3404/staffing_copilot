@@ -856,10 +856,7 @@ if mode == "👥 My Employees":
 
     if own_employees_df.empty:
         st.info(
-            "No employees saved yet. Add one via **Add Employee**, or "
-            "run `scripts/migrate_demo_roster_to_user.py` once to "
-            "import the built-in 80-person demo roster into your own "
-            "account in one go."
+            "No employees saved yet. Add one via **Add Employee**"
         )
     else:
         busy_ids = get_busy_employee_ids(plan.iloc[0:0])
