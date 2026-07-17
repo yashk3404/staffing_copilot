@@ -164,7 +164,7 @@ pytest tests/ -v
 - Embeddings use a general-purpose model, not one fine-tuned for technical hiring.
 - The optimizer assumes full-time assignment per role; partial allocations would need extended capacity constraints.
 - The shared demo roster (CSV + precomputed embeddings) is deliberately left as static files rather than migrated into Postgres (Option B in `v3_roadmap.md`) — only user-added records live in the database. A full migration of the demo roster itself is a possible v4+ move, not required for this to work.
-- Free-tier Supabase projects auto-pause after 7 days of no API traffic — first load after inactivity may take a moment to resume.
+- Free-tier Supabase projects auto-pause after 7 days of no API traffic, and Streamlit Community Cloud sleeps idle apps too — a scheduled `.github/workflows/keep-alive.yml` pings both every 12 hours to prevent this, so the deployed demo should stay warm without manual intervention.
 
 Full design rationale (why CP-SAT over greedy, why a local LLM, why two explainability layers, why Supabase over Clerk/Firebase/Appwrite) is in [`docs/project_summary.md`](docs/project_summary.md).
 
