@@ -1,0 +1,29 @@
+name: Keep Streamlit + Supabase Alive
+
+on:
+  schedule:
+    - cron: "0 6 */2 * *"   # every 2 days at 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit app
+        run: |
+          echo "Pinging Streamlit app..."
+          curl -sS -o /dev/null -w "Streamlit responded: %{http_code}\n" \
+            "https://staffing-copilot.streamlit.app/" \
+            --max-time 30 --retry 2 --retry-delay 5
+
+      - name: Ping Supabase (keeps project out of auto-pause)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Pinging Supabase REST endpoint..."
+          curl -sS -o /dev/null -w "Supabase responded: %{http_code}\n" \
+            "$SUPABASE_URL/rest/v1/employees?select=employee_id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            --max-time 30 --retry 2 --retry-delay 5
